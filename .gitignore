@@ -40,8 +40,9 @@ yarn-error.*
 # Card images downloaded for fast web loading (npm run sync:images)
 public/card-images/
 
-# Booster wrapper art (npm run sync:boosters)
-public/booster-images/
+# Las imágenes de carta se regeneran con `npm run sync:images` y pesan 1.6 GB:
+# fuera del repo a propósito. El arte de sobres y mazos sí se versiona (5 MB)
+# porque el manifiesto guarda recortes medidos a mano para cada imagen.
 
 # generated native folders
 /ios
