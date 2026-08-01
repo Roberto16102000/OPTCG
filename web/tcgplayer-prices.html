@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TCGplayer · Precios One Piece</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #060d1a;
+      --surface: #0c1f3d;
+      --surface2: #14325c;
+      --gold: #e8b923;
+      --gold-bright: #ffd54f;
+      --text: #f0f6fc;
+      --muted: #7b9ec4;
+      --border: rgba(56, 189, 248, 0.2);
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+    h1 { font-size: 1.5rem; margin-bottom: 4px; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
+    .sub a { color: var(--gold); }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .panel h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      margin-bottom: 12px;
+    }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.25);
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .row > * { flex: 1; min-width: 140px; }
+    .btn {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #c41e3a, #8b1530);
+      color: #fff;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+    }
+    .status {
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    .status.ok { background: rgba(34,197,94,0.15); color: var(--success); }
+    .status.err { background: rgba(239,68,68,0.15); color: var(--error); }
+    .status.info { background: rgba(56,189,248,0.1); color: var(--muted); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 10px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--gold); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .price { font-weight: 800; color: var(--gold-bright); }
+    .muted { color: var(--muted); font-size: 12px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .tab {
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .tab.active { background: var(--gold); color: #1a1000; border-color: var(--gold); }
+    .hidden { display: none !important; }
+    .loader { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    code { font-size: 12px; color: var(--gold-bright); }
+    .doc-list { font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .doc-list li { margin-left: 18px; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>TCGplayer · Precios de cartas</h1>
+    <p class="sub" id="pageSub">
+      Precios de mercado en USD. Por defecto usa datos públicos scrapeados de TCGplayer (sin API key).
+    </p>
+
+    <div class="tabs" id="modeTabs" style="margin-bottom:16px">
+      <button type="button" class="tab active" data-mode="web">Desde la web (sin API)</button>
+      <button type="button" class="tab" data-mode="api">API oficial TCGplayer</button>
+    </div>
+
+    <div class="panel" id="panelWeb">
+      <h2>Precios desde TCGplayer.com (sin claves)</h2>
+      <p class="muted" style="margin-bottom:12px;font-size:13px">
+        La página de TCGplayer es una SPA: un <code>fetch</code> al HTML no trae precios (solo ~25&nbsp;KB de shell).
+        Esta pestaña usa <a href="https://www.optcgapi.com" target="_blank" rel="noopener">OPTCG API</a>, que actualiza
+        <strong>market_price</strong> e <strong>inventory_price</strong> desde TCGplayer cada día (sets OP01–OP12 aprox.).
+      </p>
+      <div class="row">
+        <div style="flex:2">
+          <label for="cardCode">Código de carta</label>
+          <input id="cardCode" type="search" placeholder="Ej: OP01-001, ST01-001" />
+        </div>
+        <div style="flex:2">
+          <label for="webSearchName">O buscar por nombre (catálogo local)</label>
+          <input id="webSearchName" type="search" placeholder="Ej: Roronoa Zoro, Luffy" />
+        </div>
+      </div>
+      <div class="row">
+        <button type="button" class="btn" id="btnWebCode">Buscar por código</button>
+        <button type="button" class="btn btn-secondary" id="btnWebSample">Muestra OP01-001</button>
+        <button type="button" class="btn btn-secondary" id="btnWebName">Buscar por nombre (máx. 12)</button>
+      </div>
+      <div id="webStatus" class="status info hidden"></div>
+    </div>
+
+    <div id="apiSections" class="hidden">
+    <div class="panel">
+      <h2>1 · Conexión API</h2>
+      <div class="tabs">
+        <button type="button" class="tab active" data-auth="client">Client credentials</button>
+        <button type="button" class="tab" data-auth="oauth">OAuth (auth code)</button>
+      </div>
+      <div id="panelClient">
+        <div class="row">
+          <div>
+            <label for="publicKey">Public Key (client_id)</label>
+            <input id="publicKey" type="text" placeholder="Tu PUBLIC_KEY" autocomplete="off" />
+          </div>
+          <div>
+            <label for="privateKey">Private Key (client_secret)</label>
+            <input id="privateKey" type="password" placeholder="Tu PRIVATE_KEY" autocomplete="off" />
+          </div>
+        </div>
+        <button type="button" class="btn" id="btnToken">Obtener Bearer Token</button>
+      </div>
+      <div id="panelOAuth" class="hidden">
+        <label for="authCode">Authorization code (OAuth)</label>
+        <input id="authCode" type="text" placeholder="Código de autorización de tienda" />
+        <button type="button" class="btn btn-secondary" id="btnAuthorize">POST /app/authorize/{authCode}</button>
+        <p class="muted" style="margin-top:8px">Devuelve <code>authorizationKey</code> según la documentación.</p>
+      </div>
+      <div id="authStatus" class="status info hidden"></div>
+    </div>
+
+    <div class="panel">
+      <h2>2 · Buscar cartas (One Piece)</h2>
+      <div class="row">
+        <div>
+          <label for="categoryId">Category ID (One Piece ≈ 68)</label>
+          <input id="categoryId" type="number" value="68" />
+        </div>
+        <div style="flex:2">
+          <label for="searchName">Nombre de carta</label>
+          <input id="searchName" type="search" placeholder="Ej: Roronoa Zoro, OP01-001, Luffy" />
+        </div>
+      </div>
+      <div class="row">
+        <button type="button" class="btn" id="btnSearch">Buscar + precios</button>
+        <button type="button" class="btn btn-secondary" id="btnSample">Cargar muestra (Zoro OP01)</button>
+        <button type="button" class="btn btn-secondary" id="btnCatalogBatch">Precios desde catálogo local (10 cartas)</button>
+      </div>
+      <div id="searchStatus" class="status info hidden"></div>
+    </div>
+    </div>
+
+    <div class="panel">
+      <h2 id="resultsTitle">Resultados</h2>
+      <div id="resultsWrap">
+        <p class="muted" id="resultsHint">Busca un código (p. ej. OP01-001) o usa la muestra para ver precios de mercado.</p>
+      </div>
+      <table id="resultsTable" class="hidden">
+        <thead id="resultsHead">
+          <tr>
+            <th>Producto</th>
+            <th>Código / set</th>
+            <th>Variante</th>
+            <th>Market</th>
+            <th>Low</th>
+            <th>Mid</th>
+            <th>High</th>
+            <th>TCGplayer</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="panel" id="panelRun">
+      <h2>Cómo ejecutar</h2>
+      <ul class="doc-list" id="runDocWeb">
+        <li>Sin API: abre con cualquier servidor estático, p. ej. <code>npx serve . -p 3456</code> → <code>/web/tcgplayer-prices.html</code></li>
+        <li>Las peticiones van a <code>https://optcgapi.com</code> (CORS permitido, sin proxy).</li>
+      </ul>
+      <ul class="doc-list hidden" id="runDocApi">
+        <li>API oficial: <code>npm run tcgplayer:prices</code> (proxy en puerto 3460)</li>
+        <li>Abre: <code>http://localhost:3460/web/tcgplayer-prices.html</code></li>
+        <li>El proxy reenvía a <code>https://api.tcgplayer.com</code> (versión <code id="apiVer">v1.39.0</code>)</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const API_VER = 'v1.39.0';
+    const PROXY = ''; // mismo origen cuando usas tcgplayer-proxy-server.js
+    const OPTCG_BASE = 'https://optcgapi.com';
+    const CATALOG_URL = '../assets/data/official-catalog.json';
+    document.getElementById('apiVer').textContent = API_VER;
+
+    let mode = sessionStorage.getItem('price_mode') || 'web';
+    let bearerToken = sessionStorage.getItem('tcg_bearer') || '';
+    const publicKeyEl = document.getElementById('publicKey');
+    const privateKeyEl = document.getElementById('privateKey');
+
+    const savedPub = localStorage.getItem('tcg_public_key');
+    const savedPriv = localStorage.getItem('tcg_private_key');
+    if (savedPub) publicKeyEl.value = savedPub;
+    if (savedPriv) privateKeyEl.value = savedPriv;
+
+    function setMode(next) {
+      mode = next;
+      sessionStorage.setItem('price_mode', mode);
+      const isWeb = mode === 'web';
+      document.querySelectorAll('#modeTabs .tab').forEach((x) => {
+        x.classList.toggle('active', x.dataset.mode === mode);
+      });
+      document.getElementById('panelWeb').classList.toggle('hidden', !isWeb);
+      document.getElementById('apiSections').classList.toggle('hidden', isWeb);
+      document.getElementById('runDocWeb').classList.toggle('hidden', !isWeb);
+      document.getElementById('runDocApi').classList.toggle('hidden', isWeb);
+      document.getElementById('pageSub').textContent = isWeb
+        ? 'Precios de mercado en USD vía OPTCG API (datos diarios desde TCGplayer, sin API key).'
+        : 'API oficial TCGplayer (requiere Public Key y Private Key de desarrollador).';
+      document.getElementById('resultsHint').textContent = isWeb
+        ? 'Busca un código (p. ej. OP01-001) o por nombre para ver Market e Inventory desde TCGplayer.'
+        : 'Conecta la API y busca una carta para ver precios (Market, Low, Mid, High).';
+      setResultsHeader(isWeb);
+    }
+
+    function setResultsHeader(isWeb) {
+      const head = document.getElementById('resultsHead');
+      head.innerHTML = isWeb
+        ? `<tr>
+            <th>Carta</th>
+            <th>Código / set</th>
+            <th>Rareza</th>
+            <th>Market</th>
+            <th>Inventory</th>
+            <th>Actualizado</th>
+            <th>TCGplayer</th>
+          </tr>`
+        : `<tr>
+            <th>Producto</th>
+            <th>Código / set</th>
+            <th>Variante</th>
+            <th>Market</th>
+            <th>Low</th>
+            <th>Mid</th>
+            <th>High</th>
+            <th>TCGplayer</th>
+          </tr>`;
+    }
+
+    document.querySelectorAll('#modeTabs .tab').forEach((t) => {
+      t.addEventListener('click', () => setMode(t.dataset.mode));
+    });
+    setMode(mode);
+
+    document.querySelectorAll('#apiSections .tab[data-auth]').forEach((t) => {
+      t.addEventListener('click', () => {
+        document.querySelectorAll('#apiSections .tab[data-auth]').forEach((x) => x.classList.remove('active'));
+        t.classList.add('active');
+        const oauth = t.dataset.auth === 'oauth';
+        document.getElementById('panelClient').classList.toggle('hidden', oauth);
+        document.getElementById('panelOAuth').classList.toggle('hidden', !oauth);
+      });
+    });
+
+    function showStatus(el, msg, type = 'info') {
+      el.textContent = msg;
+      el.className = `status ${type}`;
+      el.classList.remove('hidden');
+    }
+
+    async function api(path, options = {}) {
+      const headers = { Accept: 'application/json', ...(options.headers || {}) };
+      if (bearerToken && !options.skipAuth) {
+        headers.Authorization = `bearer ${bearerToken}`;
+      }
+      const res = await fetch(`${PROXY}${path}`, { ...options, headers });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+      if (!res.ok) {
+        const err = data.errors?.join?.(' ') || data.error || data.raw || res.statusText;
+        throw new Error(err || `HTTP ${res.status}`);
+      }
+      return data;
+    }
+
+    document.getElementById('btnToken').addEventListener('click', async () => {
+      const client_id = publicKeyEl.value.trim();
+      const client_secret = privateKeyEl.value.trim();
+      const status = document.getElementById('authStatus');
+      if (!client_id || !client_secret) {
+        showStatus(status, 'Introduce Public Key y Private Key.', 'err');
+        return;
+      }
+      localStorage.setItem('tcg_public_key', client_id);
+      localStorage.setItem('tcg_private_key', client_secret);
+      showStatus(status, 'Solicitando token…', 'info');
+      try {
+        const body = new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id,
+          client_secret,
+        });
+        const data = await api('/api/tcgplayer/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString(),
+          skipAuth: true,
+        });
+        bearerToken = data.access_token;
+        sessionStorage.setItem('tcg_bearer', bearerToken);
+        const exp = data.expires_in ? ` (expira en ~${Math.round(data.expires_in / 86400)} días)` : '';
+        showStatus(status, `Conectado. Token obtenido${exp}.`, 'ok');
+      } catch (e) {
+        showStatus(status, e.message, 'err');
+      }
+    });
+
+    document.getElementById('btnAuthorize').addEventListener('click', async () => {
+      const code = document.getElementById('authCode').value.trim();
+      const status = document.getElementById('authStatus');
+      if (!code) {
+        showStatus(status, 'Introduce el authorization code.', 'err');
+        return;
+      }
+      try {
+        const data = await api(`/api/tcgplayer/app/authorize/${encodeURIComponent(code)}`, {
+          method: 'POST',
+          skipAuth: !bearerToken,
+        });
+        const key = data.results?.[0]?.authorizationKey || data.authorizationKey;
+        showStatus(status, key ? `authorizationKey: ${key}` : JSON.stringify(data), 'ok');
+      } catch (e) {
+        showStatus(status, e.message, 'err');
+      }
+    });
+
+    function money(n) {
+      if (n == null || Number.isNaN(n)) return '—';
+      return `$${Number(n).toFixed(2)}`;
+    }
+
+    function tcgProductUrl(productId) {
+      return `https://www.tcgplayer.com/product/${productId}`;
+    }
+
+    function tcgSearchUrl(query) {
+      return `https://www.tcgplayer.com/search/one-piece-cardgame/product?q=${encodeURIComponent(query)}`;
+    }
+
+    function normalizeCardCode(raw) {
+      const s = String(raw || '').trim().toUpperCase().replace(/\s+/g, '');
+      const m = s.match(/^([A-Z]{2,4})-?(\d{1,4}[A-Z]?)$/);
+      if (!m) return s;
+      const prefix = m[1].replace(/(\D+)(\d+)$/, (_, a, b) => a + String(b).padStart(2, '0'));
+      const num = m[2].padStart(3, '0');
+      return `${prefix}-${num}`;
+    }
+
+    async function fetchOptcgByCode(cardCode) {
+      const code = normalizeCardCode(cardCode);
+      const res = await fetch(`${OPTCG_BASE}/api/sets/card/${encodeURIComponent(code)}/`);
+      if (res.status === 404) return [];
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return Array.isArray(data) ? data : [data];
+    }
+
+    function renderOptcgResults(rows) {
+      const tbody = document.getElementById('resultsBody');
+      tbody.innerHTML = '';
+      const table = document.getElementById('resultsTable');
+      const wrap = document.getElementById('resultsWrap');
+
+      if (!rows.length) {
+        wrap.innerHTML = '<p class="muted">Sin precios en OPTCG para ese código (puede ser un set muy nuevo o código distinto).</p>';
+        table.classList.add('hidden');
+        return;
+      }
+
+      wrap.innerHTML = `<p class="muted">${rows.length} variante(s) · precios TCGplayer vía OPTCG (USD)</p>`;
+      table.classList.remove('hidden');
+
+      for (const row of rows) {
+        const tr = document.createElement('tr');
+        const variant = row.card_image_id?.includes('_p') ? 'Parallel' : 'Normal';
+        const q = row.card_set_id || row.card_image_id || '';
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(row.card_name || '—')}</strong></td>
+          <td class="muted">${escapeHtml(row.card_set_id || '—')}<br>${escapeHtml(row.set_name || row.set_id || '—')}</td>
+          <td>${escapeHtml(row.rarity || '—')} · ${escapeHtml(variant)}</td>
+          <td class="price">${money(row.market_price)}</td>
+          <td>${money(row.inventory_price)}</td>
+          <td class="muted">${escapeHtml(row.date_scraped || '—')}</td>
+          <td><a href="${tcgSearchUrl(q)}" target="_blank" rel="noopener" style="color:var(--gold)">Buscar</a></td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    let catalogCache = null;
+    async function loadCatalog() {
+      if (catalogCache) return catalogCache;
+      const res = await fetch(CATALOG_URL);
+      if (!res.ok) throw new Error('No se pudo cargar official-catalog.json (usa un servidor HTTP).');
+      catalogCache = await res.json();
+      return catalogCache;
+    }
+
+    async function searchOptcgByName(name) {
+      const catalog = await loadCatalog();
+      const q = name.trim().toLowerCase();
+      const cards = (catalog.cards || []).filter((c) => {
+        const code = (c.code || '').toLowerCase();
+        const n = (c.name || '').toLowerCase();
+        return code.includes(q) || n.includes(q);
+      }).slice(0, 12);
+      const allRows = [];
+      for (const card of cards) {
+        try {
+          const rows = await fetchOptcgByCode(card.code);
+          for (const r of rows) {
+            r._localName = card.name;
+          }
+          allRows.push(...rows);
+        } catch (_) {}
+      }
+      return { cards, allRows };
+    }
+
+    document.getElementById('btnWebCode').addEventListener('click', async () => {
+      const code = document.getElementById('cardCode').value.trim();
+      const status = document.getElementById('webStatus');
+      if (!code) {
+        showStatus(status, 'Introduce un código (ej. OP01-001).', 'err');
+        return;
+      }
+      showStatus(status, `<span class="loader"></span> Consultando OPTCG…`, 'info');
+      try {
+        const rows = await fetchOptcgByCode(code);
+        showStatus(status, rows.length ? `${rows.length} variante(s) encontrada(s).` : 'Sin datos para ese código.', rows.length ? 'ok' : 'err');
+        renderOptcgResults(rows);
+      } catch (e) {
+        showStatus(status, e.message, 'err');
+      }
+    });
+
+    document.getElementById('cardCode').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btnWebCode').click();
+    });
+
+    document.getElementById('btnWebSample').addEventListener('click', () => {
+      document.getElementById('cardCode').value = 'OP01-001';
+      document.getElementById('btnWebCode').click();
+    });
+
+    document.getElementById('btnWebName').addEventListener('click', async () => {
+      const name = document.getElementById('webSearchName').value.trim();
+      const status = document.getElementById('webStatus');
+      if (!name) {
+        showStatus(status, 'Escribe un nombre para buscar en el catálogo local.', 'err');
+        return;
+      }
+      showStatus(status, `<span class="loader"></span> Catálogo + OPTCG…`, 'info');
+      try {
+        const { cards, allRows } = await searchOptcgByName(name);
+        if (!cards.length) {
+          showStatus(status, 'No hay cartas en el catálogo local con ese texto.', 'err');
+          renderOptcgResults([]);
+          return;
+        }
+        showStatus(status, `${cards.length} carta(s) en catálogo, ${allRows.length} fila(s) con precio OPTCG.`, allRows.length ? 'ok' : 'err');
+        renderOptcgResults(allRows);
+      } catch (e) {
+        showStatus(status, e.message, 'err');
+      }
+    });
+
+    document.getElementById('webSearchName').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btnWebName').click();
+    });
+
+    function renderResults(products, prices) {
+      const priceByProduct = new Map();
+      for (const p of prices || []) {
+        const list = priceByProduct.get(p.productId) || [];
+        list.push(p);
+        priceByProduct.set(p.productId, list);
+      }
+
+      const tbody = document.getElementById('resultsBody');
+      tbody.innerHTML = '';
+      const table = document.getElementById('resultsTable');
+      const wrap = document.getElementById('resultsWrap');
+
+      if (!products.length) {
+        wrap.innerHTML = '<p class="muted">Sin productos. Prueba otro nombre o código.</p>';
+        table.classList.add('hidden');
+        return;
+      }
+
+      wrap.innerHTML = `<p class="muted">${products.length} producto(s) · precios TCGplayer (USD)</p>`;
+      table.classList.remove('hidden');
+
+      for (const prod of products) {
+        const priceRows = priceByProduct.get(prod.productId) || [{}];
+        for (const pr of priceRows) {
+          const tr = document.createElement('tr');
+          const name = prod.name || prod.cleanName || `Product #${prod.productId}`;
+          const setName = prod._localCode || prod.groupName || prod.setName || '—';
+          const trSubtype = pr.subTypeName || 'Normal';
+          tr.innerHTML = `
+            <td><strong>${escapeHtml(name)}</strong></td>
+            <td class="muted">${escapeHtml(String(prod.productId))}<br>${escapeHtml(setName)}</td>
+            <td>${escapeHtml(trSubtype)}</td>
+            <td class="price">${money(pr.marketPrice)}</td>
+            <td>${money(pr.lowPrice)}</td>
+            <td>${money(pr.midPrice)}</td>
+            <td>${money(pr.highPrice)}</td>
+            <td><a href="${tcgProductUrl(prod.productId)}" target="_blank" rel="noopener" style="color:var(--gold)">Ver</a></td>
+          `;
+          tbody.appendChild(tr);
+        }
+      }
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    async function searchAndPrice(productName) {
+      const status = document.getElementById('searchStatus');
+      const categoryId = Number(document.getElementById('categoryId').value) || 68;
+      if (!bearerToken) {
+        showStatus(status, 'Primero obtén el Bearer Token.', 'err');
+        return;
+      }
+      showStatus(status, `<span class="loader"></span> Buscando "${productName}"…`, 'info');
+      try {
+        const search = await api(`/api/tcgplayer/${API_VER}/catalog/categories/${categoryId}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            limit: 25,
+            offset: 0,
+            filters: [{ name: 'ProductName', values: [productName] }],
+          }),
+        });
+
+        const ids = search.results || [];
+        if (!ids.length) {
+          showStatus(status, 'No se encontraron productos en TCGplayer.', 'err');
+          renderResults([], []);
+          return;
+        }
+
+        const idList = ids.slice(0, 25).join(',');
+        const productsData = await api(`/api/tcgplayer/${API_VER}/catalog/products/${idList}`);
+        const products = productsData.results || [];
+
+        const pricesData = await api(`/api/tcgplayer/${API_VER}/pricing/products/${idList}`);
+        const prices = pricesData.results || [];
+
+        showStatus(status, `${products.length} producto(s), ${prices.length} fila(s) de precio.`, 'ok');
+        renderResults(products, prices);
+      } catch (e) {
+        showStatus(status, e.message, 'err');
+      }
+    }
+
+    document.getElementById('btnSearch').addEventListener('click', () => {
+      const q = document.getElementById('searchName').value.trim();
+      if (q) searchAndPrice(q);
+    });
+
+    document.getElementById('searchName').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btnSearch').click();
+    });
+
+    document.getElementById('btnSample').addEventListener('click', () => {
+      document.getElementById('searchName').value = 'Roronoa Zoro';
+      searchAndPrice('Roronoa Zoro');
+    });
+
+    document.getElementById('btnCatalogBatch').addEventListener('click', async () => {
+      const status = document.getElementById('searchStatus');
+      const categoryId = Number(document.getElementById('categoryId').value) || 68;
+      if (!bearerToken) {
+        showStatus(status, 'Primero obtén el Bearer Token.', 'err');
+        return;
+      }
+      showStatus(status, 'Cargando catálogo local y consultando precios…', 'info');
+      try {
+        const catalog = await fetch('/api/catalog-cards').then((r) => r.json());
+        const sample = (catalog.cards || []).slice(0, 10);
+        const allProducts = [];
+        const allPrices = [];
+
+        for (const card of sample) {
+          try {
+            const search = await api(`/api/tcgplayer/${API_VER}/catalog/categories/${categoryId}/search`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                limit: 5,
+                offset: 0,
+                filters: [{ name: 'ProductName', values: [card.name] }],
+              }),
+            });
+            const pid = search.results?.[0];
+            if (!pid) continue;
+            const [prodRes, priceRes] = await Promise.all([
+              api(`/api/tcgplayer/${API_VER}/catalog/products/${pid}`),
+              api(`/api/tcgplayer/${API_VER}/pricing/products/${pid}`),
+            ]);
+            const prod = prodRes.results?.[0];
+            if (prod) {
+              prod._localCode = card.code;
+              allProducts.push(prod);
+              allPrices.push(...(priceRes.results || []));
+            }
+          } catch (_) {}
+        }
+        showStatus(status, `${allProducts.length} coincidencias desde catálogo local.`, 'ok');
+        renderResults(allProducts, allPrices);
+      } catch (e) {
+        showStatus(status, e.message, 'err');
+      }
+    });
+
+    if (bearerToken) {
+      document.getElementById('authStatus').classList.remove('hidden');
+      showStatus(document.getElementById('authStatus'), 'Token en sesión restaurado.', 'ok');
+    }
+  </script>
+</body>
+</html>

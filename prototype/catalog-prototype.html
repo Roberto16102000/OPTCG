@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>One Piece TCG — Catalog v1 (archived)</title>
+  <style>
+    :root {
+      --bg: #0f1423;
+      --surface: #1a2238;
+      --surface-light: #243052;
+      --primary: #e63946;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #334155;
+      --success: #22c55e;
+      --grid-bg: #d8d3c8;
+      --bar-bg: #c9c4b8;
+      --bar-border: #a8a196;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      display: flex;
+      gap: 8px;
+      padding: 16px;
+      align-items: center;
+    }
+
+    .search {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 15px;
+    }
+
+    .btn-sync {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .filters {
+      padding: 0 16px 8px;
+    }
+
+    .filter-row {
+      margin-bottom: 8px;
+    }
+
+    .filter-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .chip.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .set-select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .results-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--bar-bg);
+      border-top: 1px solid var(--bar-border);
+      border-bottom: 1px solid var(--bar-border);
+    }
+
+    .results-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .btn-clear {
+      padding: 6px 14px;
+      border: 1px solid #0f172a;
+      background: #f8f6f1;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 13px;
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    .result-count {
+      color: #1e293b;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .page-nav, .page-num {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 2px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page-nav:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .page-num.active {
+      background: #0f172a;
+      color: #fff;
+      border-color: #0f172a;
+    }
+
+    .page-ellipsis {
+      color: var(--muted);
+      padding: 0 4px;
+      line-height: 32px;
+    }
+
+    .grid-panel {
+      flex: 1;
+      background: var(--grid-bg);
+      overflow: auto;
+      padding: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+      gap: 10px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card-tile {
+      aspect-ratio: 63 / 88;
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      background: #1a1a1a;
+      position: relative;
+      transition: transform 0.12s, border-color 0.12s;
+    }
+
+    .card-tile:hover {
+      transform: scale(1.02);
+    }
+
+    .card-tile.in-collection {
+      border-color: var(--success);
+    }
+
+    .card-tile img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .card-tile .badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: var(--success);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      width: 20px;
+      height: 20px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tabs {
+      display: flex;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .tab.active {
+      color: var(--primary);
+      border-top: 2px solid var(--primary);
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 920px;
+      height: 520px;
+      background: #fff;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    .modal-header {
+      background: #000;
+      color: #fff;
+      text-align: center;
+      padding: 14px 40px;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .modal-meta {
+      font-size: 13px;
+      color: #e2e8f0;
+    }
+
+    .modal-name {
+      font-size: 22px;
+      font-weight: 800;
+      margin-top: 4px;
+    }
+
+    .modal-close {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-body {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    .modal-image-col {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .modal-nav {
+      width: 40px;
+      height: 56px;
+      border: none;
+      background: rgba(0, 0, 0, 0.06);
+      border-radius: 4px;
+      font-size: 28px;
+      color: #334155;
+      cursor: pointer;
+    }
+
+    .modal-nav:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+
+    .modal-image-wrap {
+      width: 280px;
+      height: 389px;
+      background: #e2e8f0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .modal-image-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .modal-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .stats-table {
+      border: 1px solid #cbd5e1;
+      border-bottom: none;
+      flex-shrink: 0;
+    }
+
+    .stats-row {
+      display: flex;
+      border-bottom: 1px solid #cbd5e1;
+      height: 52px;
+    }
+
+    .stat-cell {
+      flex: 1;
+      padding: 8px 14px;
+      border-right: 1px solid #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .stat-cell:last-child { border-right: none; }
+    .stat-cell.empty { background: #fff; }
+
+    .stat-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 15px;
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .modal-scroll {
+      flex: 1;
+      overflow-y: auto;
+      margin-top: 8px;
+      min-height: 0;
+    }
+
+    .section {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 12px;
+      margin-top: 12px;
+    }
+
+    .section:first-child {
+      border-top: none;
+      margin-top: 0;
+      padding-top: 4px;
+    }
+
+    .section h3 {
+      font-size: 15px;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+
+    .section p {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.5;
+    }
+
+    .btn-add {
+      margin-top: 12px;
+      flex-shrink: 0;
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .note {
+      padding: 8px 16px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      background: var(--surface);
+    }
+
+    @media (max-width: 720px) {
+      .modal { height: 90vh; max-height: 640px; }
+      .modal-body { flex-direction: column; overflow-y: auto; }
+      .modal-image-col { justify-content: center; }
+      .modal-image-wrap { width: 220px; height: 306px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <input type="search" class="search" id="search" placeholder="Search by name or code..." />
+    <button type="button" class="btn-sync">↻ Sync</button>
+  </header>
+
+  <section class="filters">
+    <div class="filter-row">
+      <span class="filter-label">Version (image only)</span>
+      <div class="chips" data-filter-group="version">
+        <button type="button" class="chip active" data-value="global">Global (EN)</button>
+        <button type="button" class="chip" data-value="jp">Japanese (img)</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Color</span>
+      <div class="chips" data-filter-group="color">
+        <button type="button" class="chip active" data-value="all">ALL</button>
+        <button type="button" class="chip" data-value="Red">Red</button>
+        <button type="button" class="chip" data-value="Green">Green</button>
+        <button type="button" class="chip" data-value="Blue">Blue</button>
+        <button type="button" class="chip" data-value="Purple">Purple</button>
+        <button type="button" class="chip" data-value="Black">Black</button>
+        <button type="button" class="chip" data-value="Yellow">Yellow</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Card type</span>
+      <div class="chips" data-filter-group="type">
+        <button type="button" class="chip active" data-value="all">ALL</button>
+        <button type="button" class="chip" data-value="LEADER">Leader</button>
+        <button type="button" class="chip" data-value="CHARACTER">Character</button>
+        <button type="button" class="chip" data-value="STAGE">Stage</button>
+        <button type="button" class="chip" data-value="EVENT">Event</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Set</span>
+      <select class="set-select" id="setFilter">
+        <option value="">All sets · 120 cards (demo)</option>
+        <option value="OP-01">ROMANCE DAWN [OP-01]</option>
+        <option value="OP-16">THE TIME OF BATTLE [OP-16]</option>
+        <option value="ST-30">Luffy & Ace [ST-30]</option>
+      </select>
+    </div>
+  </section>
+
+  <div class="results-bar">
+    <div class="results-left">
+      <button type="button" class="btn-clear" id="btnClear" hidden>Clear</button>
+      <span class="result-count" id="resultCount">0 results</span>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <main class="grid-panel">
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <p class="note">v1 archivada. Versión de producción: <strong>web/catalog.html</strong> (ver web/README.md).</p>
+
+  <nav class="tabs">
+    <div class="tab active">📚 Catalog</div>
+    <div class="tab">⭐ My Collection</div>
+  </nav>
+
+  <div class="modal-backdrop" id="modal">
+    <div class="modal" role="dialog" aria-modal="true">
+      <header class="modal-header">
+        <button type="button" class="modal-close" id="modalClose" aria-label="Close">✕</button>
+        <div class="modal-meta" id="modalMeta"></div>
+        <h2 class="modal-name" id="modalName"></h2>
+      </header>
+      <div class="modal-body">
+        <div class="modal-image-col">
+          <button type="button" class="modal-nav" id="modalPrev">‹</button>
+          <div class="modal-image-wrap">
+            <img id="modalImg" alt="" />
+          </div>
+          <button type="button" class="modal-nav" id="modalNext">›</button>
+        </div>
+        <div class="modal-details">
+          <div class="stats-table" id="modalStats"></div>
+          <div class="modal-scroll">
+            <div class="section" id="modalTypeSection">
+              <h3>Type</h3>
+              <p id="modalType"></p>
+            </div>
+            <div class="section">
+              <h3>Effect</h3>
+              <p id="modalEffect"></p>
+            </div>
+            <div class="section">
+              <h3>Card Set(s)</h3>
+              <p id="modalSet"></p>
+            </div>
+          </div>
+          <button type="button" class="btn-add">+ Add to my collection</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PAGE_SIZE = 60;
+    const PROXY = 'https://wsrv.nl/';
+
+    const MOCK_CARDS = [
+      { id: 'OP01-001', code: 'OP01-001', name: 'Roronoa Zoro', rarity: 'L', type: 'LEADER', color: 'Red', cost: '5', power: '5000', counter: '-', family: 'Supernovas/Straw Hat Crew', set: 'ROMANCE DAWN [OP-01]', setCode: 'OP-01', ability: '[DON!! x1] [Your Turn] All of your Characters gain +1000 power.', img: 'OP01-001.png' },
+      { id: 'OP01-002', code: 'OP01-002', name: 'Trafalgar Law', rarity: 'L', type: 'LEADER', color: 'Red/Green', cost: '4', power: '5000', counter: '-', family: 'Supernovas/Heart Pirates', set: 'ROMANCE DAWN [OP-01]', setCode: 'OP-01', ability: '[Activate: Main] [Once Per Turn] You may return 1 of your Characters to the owner\'s hand.', img: 'OP01-002.png' },
+      { id: 'OP01-003', code: 'OP01-003', name: 'Monkey.D.Luffy', rarity: 'L', type: 'LEADER', color: 'Red', cost: '5', power: '5000', counter: '-', family: 'Supernovas/Straw Hat Crew', set: 'ROMANCE DAWN [OP-01]', setCode: 'OP-01', ability: '[Activate: Main] [Once Per Turn] Give up to 1 rested DON!! to your Leader or Character.', img: 'OP01-003.png' },
+      { id: 'OP01-007', code: 'OP01-007', name: 'Caribou', rarity: 'C', type: 'CHARACTER', color: 'Red', cost: '3', power: '4000', counter: '1000', family: 'Supernovas/Caribou Pirates', set: 'ROMANCE DAWN [OP-01]', setCode: 'OP-01', ability: '[On K.O.] K.O. up to 1 of your opponent\'s Characters with 4000 power or less.', img: 'OP01-007.png' },
+      { id: 'OP01-008', code: 'OP01-008', name: 'Cavendish', rarity: 'C', type: 'CHARACTER', color: 'Red', cost: '4', power: '5000', counter: '-', family: 'Supernovas/Beautiful Pirates', set: 'ROMANCE DAWN [OP-01]', setCode: 'OP-01', ability: '[On Play] You may add 1 card from your Life area to your hand.', img: 'OP01-008.png' },
+      { id: 'OP16-001', code: 'OP16-001', name: 'Portgas D. Ace', rarity: 'L', type: 'LEADER', color: 'Red', cost: '5', power: '5000', counter: '-', family: 'Whitebeard Pirates', set: 'THE TIME OF BATTLE [OP-16]', setCode: 'OP-16', ability: 'Sample JP-only set card (demo text).', img: 'OP16-001.png' },
+      { id: 'ST30-001', code: 'ST30-001', name: 'Luffy & Ace', rarity: 'L', type: 'LEADER', color: 'Red/Green', cost: '4', power: '6000', counter: '-', family: 'Impel Down/Whitebeard Pirates/Straw Hat Crew', set: 'Luffy & Ace [ST-30]', setCode: 'ST-30', ability: 'Starter Deck EX demo card.', img: 'ST30-001.png' },
+    ];
+
+    // Expand demo catalog to ~120 cards for pagination feel
+    const ALL_CARDS = [];
+    for (let i = 0; i < 120; i++) {
+      const base = MOCK_CARDS[i % MOCK_CARDS.length];
+      ALL_CARDS.push({
+        ...base,
+        id: `${base.id}_demo_${i}`,
+        code: base.code,
+        inCollection: i % 7 === 0,
+      });
+    }
+
+    const state = {
+      search: '',
+      color: 'all',
+      type: 'all',
+      set: '',
+      page: 1,
+      previewIndex: null,
+      collection: new Set(ALL_CARDS.filter((c) => c.inCollection).map((c) => c.id)),
+    };
+
+    function imageUrl(filename, w, h) {
+      const src = `https://en.onepiece-cardgame.com/images/cardlist/card/${filename}?260518`;
+      const params = new URLSearchParams({ url: src, w: String(w * 2), h: String(h * 2), fit: 'contain', output: 'webp' });
+      return `${PROXY}?${params}`;
+    }
+
+    function filteredCards() {
+      return ALL_CARDS.filter((c) => {
+        if (state.set && c.setCode !== state.set) return false;
+        if (state.color !== 'all' && !c.color.includes(state.color)) return false;
+        if (state.type !== 'all' && c.type !== state.type) return false;
+        if (state.search) {
+          const q = state.search.toLowerCase();
+          if (!c.name.toLowerCase().includes(q) && !c.code.toLowerCase().includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function buildPageList(current, total) {
+      if (total <= 1) return total ? [1] : [];
+      if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+      const pages = new Set([1, total, current, current - 1, current + 1]);
+      const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+      const out = [];
+      for (let i = 0; i < sorted.length; i++) {
+        if (i > 0 && sorted[i] - sorted[i - 1] > 1) out.push('…');
+        out.push(sorted[i]);
+      }
+      return out;
+    }
+
+    function renderPagination(totalPages) {
+      const el = document.getElementById('pagination');
+      const pages = buildPageList(state.page, totalPages);
+      el.innerHTML = `
+        <button type="button" class="page-nav" id="prevPage" ${state.page <= 1 ? 'disabled' : ''}>PREV</button>
+        ${pages.map((p) => p === '…' ? '<span class="page-ellipsis">…</span>' : `<button type="button" class="page-num ${p === state.page ? 'active' : ''}" data-page="${p}">${p}</button>`).join('')}
+        <button type="button" class="page-nav" id="nextPage" ${state.page >= totalPages ? 'disabled' : ''}>NEXT</button>
+      `;
+      el.querySelectorAll('[data-page]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.page = Number(btn.dataset.page);
+          render();
+        });
+      });
+      document.getElementById('prevPage').onclick = () => { if (state.page > 1) { state.page--; render(); } };
+      document.getElementById('nextPage').onclick = () => { if (state.page < totalPages) { state.page++; render(); } };
+    }
+
+    function renderGrid(cards) {
+      const start = (state.page - 1) * PAGE_SIZE;
+      const pageCards = cards.slice(start, start + PAGE_SIZE);
+      const grid = document.getElementById('grid');
+      grid.innerHTML = pageCards.map((card, i) => {
+        const globalIndex = start + i;
+        const inCol = state.collection.has(card.id);
+        return `
+          <div class="card-tile ${inCol ? 'in-collection' : ''}" data-index="${globalIndex}" title="${card.name}">
+            <img src="${imageUrl(card.img, 132, 184)}" alt="${card.name}" loading="lazy" />
+            ${inCol ? '<span class="badge">✓</span>' : ''}
+          </div>
+        `;
+      }).join('');
+      grid.querySelectorAll('.card-tile').forEach((tile) => {
+        tile.addEventListener('click', () => openModal(Number(tile.dataset.index)));
+      });
+    }
+
+    function openModal(index) {
+      const cards = filteredCards();
+      const card = cards[index];
+      if (!card) return;
+      state.previewIndex = index;
+
+      const isLeader = card.type === 'LEADER';
+      const counter = card.counter && card.counter !== '-' ? card.counter : '';
+      const stats = [
+        [{ label: isLeader ? 'Life' : 'Cost', value: card.cost }, { label: 'Power', value: card.power }],
+        [{ label: 'Color', value: card.color }, { label: 'Counter', value: counter, empty: !counter }],
+      ];
+
+      document.getElementById('modalMeta').textContent = `${card.code} | ${card.rarity} | ${card.type}`;
+      document.getElementById('modalName').textContent = card.name;
+      document.getElementById('modalImg').src = imageUrl(card.img, 280, 389);
+      document.getElementById('modalStats').innerHTML = stats.map((row) => `
+        <div class="stats-row">
+          ${row.map((cell) => `
+            <div class="stat-cell ${cell.empty ? 'empty' : ''}">
+              ${cell.empty ? '' : `<span class="stat-label">${cell.label}</span><span class="stat-value">${cell.value}</span>`}
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+      document.getElementById('modalType').textContent = card.family;
+      document.getElementById('modalEffect').textContent = card.ability;
+      document.getElementById('modalSet').textContent = card.set;
+
+      document.getElementById('modalPrev').disabled = index <= 0;
+      document.getElementById('modalNext').disabled = index >= cards.length - 1;
+      document.getElementById('modal').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+      state.previewIndex = null;
+    }
+
+    function render() {
+      const cards = filteredCards();
+      const totalPages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE));
+      if (state.page > totalPages) state.page = totalPages;
+
+      const hasFilters = state.search || state.color !== 'all' || state.type !== 'all' || state.set;
+      document.getElementById('btnClear').hidden = !hasFilters;
+      document.getElementById('resultCount').textContent = `${cards.length} result${cards.length !== 1 ? 's' : ''}`;
+
+      renderPagination(totalPages);
+      renderGrid(cards);
+    }
+
+    // Chip filters
+    document.querySelectorAll('.chips').forEach((group) => {
+      group.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        group.querySelectorAll('.chip').forEach((c) => c.classList.remove('active'));
+        chip.classList.add('active');
+        const g = group.dataset.filterGroup;
+        if (g === 'color') state.color = chip.dataset.value;
+        if (g === 'type') state.type = chip.dataset.value;
+        state.page = 1;
+        render();
+      });
+    });
+
+    document.getElementById('search').addEventListener('input', (e) => {
+      state.search = e.target.value.trim();
+      state.page = 1;
+      render();
+    });
+
+    document.getElementById('setFilter').addEventListener('change', (e) => {
+      state.set = e.target.value;
+      state.page = 1;
+      render();
+    });
+
+    document.getElementById('btnClear').addEventListener('click', () => {
+      state.search = '';
+      state.color = 'all';
+      state.type = 'all';
+      state.set = '';
+      state.page = 1;
+      document.getElementById('search').value = '';
+      document.getElementById('setFilter').value = '';
+      document.querySelectorAll('.chips').forEach((g) => {
+        g.querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('active', i === 0));
+      });
+      render();
+    });
+
+    document.getElementById('modalClose').onclick = closeModal;
+    document.getElementById('modal').addEventListener('click', (e) => {
+      if (e.target.id === 'modal') closeModal();
+    });
+    document.getElementById('modalPrev').onclick = () => {
+      if (state.previewIndex > 0) openModal(state.previewIndex - 1);
+    };
+    document.getElementById('modalNext').onclick = () => {
+      const cards = filteredCards();
+      if (state.previewIndex < cards.length - 1) openModal(state.previewIndex + 1);
+    };
+
+    document.addEventListener('keydown', (e) => {
+      if (!document.getElementById('modal').classList.contains('open')) return;
+      if (e.key === 'Escape') closeModal();
+      if (e.key === 'ArrowLeft') document.getElementById('modalPrev').click();
+      if (e.key === 'ArrowRight') document.getElementById('modalNext').click();
+    });
+
+    render();
+  </script>
+</body>
+</html>
