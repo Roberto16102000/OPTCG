@@ -75,7 +75,6 @@ export function CardImage({
           priority={priority}
           recyclingKey={recyclingKey ?? displayUri}
           transition={120}
-          placeholder={{ color: 'transparent' }}
           onError={handleError}
         />
       ) : (

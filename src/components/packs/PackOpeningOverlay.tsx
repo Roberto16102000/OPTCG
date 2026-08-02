@@ -17,7 +17,7 @@ import {
   getRarityBadgeLabel,
   getRarityGlowColor,
 } from '../../utils/rarity';
-import { ART_CROPS, BOOSTER_ASPECT, getBoosterImageUri } from '../../utils/boosterImages';
+import { getArtAspect, getArtCrop, getBoosterImageUri } from '../../utils/boosterImages';
 import { BoosterArt } from './BoosterArt';
 import type { PulledCard } from '../../utils/packs';
 import { CardImage } from '../CardImage';
@@ -54,7 +54,7 @@ export function PackOpeningOverlay({
   const boosterUri = getBoosterImageUri(packId);
   // Con arte real el marco toma la proporción del sobre; sin él, la de una carta.
   const wrapperHeight = cardHeight;
-  const wrapperWidth = boosterUri ? cardHeight * BOOSTER_ASPECT : cardWidth;
+  const wrapperWidth = boosterUri ? cardHeight * getArtAspect(packId) : cardWidth;
 
   const enter = useRef(new Animated.Value(0)).current;
   const exit = useRef(new Animated.Value(0)).current;
@@ -157,7 +157,7 @@ export function PackOpeningOverlay({
           ]}
         >
           {boosterUri ? (
-            <BoosterArt uri={boosterUri} height={wrapperHeight} crop={ART_CROPS.booster} />
+            <BoosterArt uri={boosterUri} height={wrapperHeight} crop={getArtCrop(packId)} />
           ) : (
             <View style={styles.wrapperInner}>
               <Text style={styles.wrapperSet}>{packLabel}</Text>

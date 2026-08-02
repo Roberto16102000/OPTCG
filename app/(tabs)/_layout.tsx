@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 
 import { StyleSheet, View } from 'react-native';
 
-import { SidebarNav } from '../../src/components/SidebarNav';
+import { BottomNav } from '../../src/components/BottomNav';
 
 import { colors } from '../../src/constants/theme';
 
@@ -13,8 +13,6 @@ export default function TabsLayout() {
   return (
 
     <View style={styles.shell}>
-
-      <SidebarNav />
 
       <View style={styles.content}>
 
@@ -48,6 +46,8 @@ export default function TabsLayout() {
 
       </View>
 
+      <BottomNav />
+
     </View>
 
   );
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
 
     flex: 1,
 
-    flexDirection: 'row',
+    flexDirection: 'column',
 
     backgroundColor: colors.background,
 

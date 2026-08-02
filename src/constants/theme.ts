@@ -130,6 +130,16 @@ export const parchment = {
   gold: '#a8781f',
 } as const;
 
+/**
+ * Puntos de corte. Por debajo de `compact` la barra lateral se contrae sola y
+ * los paneles laterales pasan a apilarse: a 375 px la barra expandida se comía
+ * el 59 % del ancho.
+ */
+export const breakpoints = {
+  compact: 760,
+  medium: 1080,
+} as const;
+
 export const spacing = {
   xs: 4,
   sm: 8,

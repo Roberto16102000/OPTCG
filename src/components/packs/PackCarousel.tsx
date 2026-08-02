@@ -1,11 +1,13 @@
-import { Pressable, StyleSheet, View } from 'react-native';
-import { ART_CROPS, getBoosterImageUri } from '../../utils/boosterImages';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { getArtCrop, getBoosterImageUri } from '../../utils/boosterImages';
 import type { PackDefinition } from '../../utils/packs';
 import { BoosterArt } from './BoosterArt';
 
 const CENTER_HEIGHT = 260;
 const SIDE_HEIGHT = 190;
-/** Cuánto se solapan los sobres laterales con el central. */
+/** Ancho al que el carrusel se ve a tamaño completo. */
+const FULL_WIDTH = 520;
+/** Cuánto se solapan los sobres laterales con el central, a escala 1. */
 const OVERLAP = 44;
 
 interface PackCarouselProps {
@@ -15,10 +17,17 @@ interface PackCarouselProps {
 }
 
 /**
- * Sobre activo grande y centrado, con el anterior y el siguiente detrás,
- * más pequeños y atenuados. Da la vuelta al llegar a los extremos.
+ * Sobre activo grande y centrado, con el anterior y el siguiente detrás, más
+ * pequeños y atenuados. Da la vuelta al llegar a los extremos.
+ *
+ * En pantalla estrecha se encoge en lugar de ocultar los laterales: son la
+ * única forma de cambiar de sobre, así que esconderlos dejaría la pantalla sin
+ * navegación.
  */
 export function PackCarousel({ packs, index, onSelect }: PackCarouselProps) {
+  const { width } = useWindowDimensions();
+  const scale = Math.max(0.58, Math.min(1, width / FULL_WIDTH));
+
   if (!packs.length) return null;
 
   const wrap = (i: number) => (i + packs.length) % packs.length;
@@ -26,20 +35,37 @@ export function PackCarousel({ packs, index, onSelect }: PackCarouselProps) {
   const current = packs[index];
   const next = packs[wrap(index + 1)];
 
+  const centerHeight = Math.round(CENTER_HEIGHT * scale);
+  const sideHeight = Math.round(SIDE_HEIGHT * scale);
+  const overlap = Math.round(OVERLAP * scale);
   const showSides = packs.length > 1;
 
   return (
-    <View style={styles.stage}>
+    <View style={[styles.stage, { height: centerHeight + 24 }]}>
       {showSides ? (
-        <Side pack={prev} side="left" onPress={() => onSelect(prev.id)} />
+        <Side
+          pack={prev}
+          height={sideHeight}
+          style={{ marginRight: -overlap }}
+          onPress={() => onSelect(prev.id)}
+        />
       ) : null}
 
       <View style={styles.center}>
-        <BoosterArt uri={getBoosterImageUri(current.id) ?? ''} height={CENTER_HEIGHT} crop={ART_CROPS.booster} />
+        <BoosterArt
+          uri={getBoosterImageUri(current.id) ?? ''}
+          height={centerHeight}
+          crop={getArtCrop(current.id)}
+        />
       </View>
 
       {showSides && next.id !== prev.id ? (
-        <Side pack={next} side="right" onPress={() => onSelect(next.id)} />
+        <Side
+          pack={next}
+          height={sideHeight}
+          style={{ marginLeft: -overlap }}
+          onPress={() => onSelect(next.id)}
+        />
       ) : null}
     </View>
   );
@@ -47,11 +73,13 @@ export function PackCarousel({ packs, index, onSelect }: PackCarouselProps) {
 
 function Side({
   pack,
-  side,
+  height,
+  style,
   onPress,
 }: {
   pack: PackDefinition;
-  side: 'left' | 'right';
+  height: number;
+  style: { marginLeft?: number; marginRight?: number };
   onPress: () => void;
 }) {
   const uri = getBoosterImageUri(pack.id);
@@ -60,13 +88,9 @@ function Side({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Ver sobre ${pack.label}`}
-      style={({ pressed }) => [
-        styles.side,
-        side === 'left' ? styles.sideLeft : styles.sideRight,
-        pressed && styles.sidePressed,
-      ]}
+      style={({ pressed }) => [styles.side, style, pressed && styles.sidePressed]}
     >
-      <BoosterArt uri={uri ?? ''} height={SIDE_HEIGHT} crop={ART_CROPS.booster} />
+      <BoosterArt uri={uri ?? ''} height={height} crop={getArtCrop(pack.id)} />
     </Pressable>
   );
 }
@@ -76,7 +100,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: CENTER_HEIGHT + 24,
   },
   center: {
     zIndex: 2,
@@ -91,12 +114,6 @@ const styles = StyleSheet.create({
   side: {
     zIndex: 1,
     opacity: 0.55,
-  },
-  sideLeft: {
-    marginRight: -OVERLAP,
-  },
-  sideRight: {
-    marginLeft: -OVERLAP,
   },
   sidePressed: {
     opacity: 0.85,

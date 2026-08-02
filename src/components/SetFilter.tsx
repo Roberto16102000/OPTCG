@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { colors, spacing } from '../constants/theme';
+import { useFilterLayout } from './filters/FilterLayoutContext';
 import { formatSetDisplayName, getSetCodeFromName, sortSetNames } from '../utils/cards';
 
 interface SetFilterProps {
@@ -27,7 +28,8 @@ function formatCount(n: number): string {
 
 export function SetFilter({ sets, setCounts, totalCount, value, onChange }: SetFilterProps) {
   const { width } = useWindowDimensions();
-  const sideBySide = width >= 480;
+  const { stacked } = useFilterLayout();
+  const sideBySide = !stacked && width >= 480;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 

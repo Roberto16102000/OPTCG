@@ -12,6 +12,14 @@ export interface PackDefinition {
   cards: OnePieceCard[];
   /** Solo cartas base (id === code); es el denominador de la colección. */
   baseCards: OnePieceCard[];
+  /** Cartas que reparte. Los boosters dan 12; el de promos, 1. */
+  cardsPerPack: number;
+  /**
+   * Colecciones que agrupa, cuando el sobre no es una expansión única. El de
+   * promos junta "Promotion card" y "Other Product Card", y cada una se lista
+   * por separado igual que en la pestaña Sets.
+   */
+  subSets?: { name: string; cards: OnePieceCard[] }[];
 }
 
 export interface PulledCard {
@@ -28,6 +36,47 @@ export type PullTier = 'base' | 'mid' | 'high' | 'chase';
 
 const BOOSTER_PREFIX = /^(OP|EB|PRB)\d+$/;
 const MIN_CARDS_FOR_BOOSTER = 12;
+const CARDS_PER_BOOSTER = 12;
+
+/** Id del sobre de promos; no viene del catálogo, se construye aparte. */
+export const PROMO_PACK_ID = 'PROMO';
+
+/**
+ * Sobre de promos y productos sueltos: las cartas que no pertenecen a ningún
+ * booster ni mazo. Reparte una sola carta, como el Bonus Pack real.
+ */
+const PROMO_SET_NAMES = ['Promotion card', 'Other Product Card'];
+
+/** Nombre de colección sin el HTML escapado que trae el catálogo. */
+function plainSetName(card: OnePieceCard): string {
+  return (card.set?.name ?? '')
+    .replace(/&lt;[^&]*&gt;/g, '')
+    .replace(/<[^>]*>/g, '')
+    .trim();
+}
+
+export function buildPromoPack(cards: OnePieceCard[]): PackDefinition | null {
+  const subSets = PROMO_SET_NAMES.map((name) => ({
+    name,
+    cards: cards.filter((card) => plainSetName(card) === name),
+  })).filter((group) => group.cards.length > 0);
+
+  if (!subSets.length) return null;
+
+  const pool = subSets.flatMap((group) => group.cards);
+  const baseCards = pool.filter((card) => card.id === card.code);
+  if (!baseCards.length) return null;
+
+  return {
+    id: PROMO_PACK_ID,
+    label: 'PROMO',
+    name: 'Promos y otros',
+    cards: pool,
+    baseCards,
+    cardsPerPack: 1,
+    subSets,
+  };
+}
 
 /** Cartas por sobre, igual que un booster físico de One Piece. */
 export const CARDS_PER_PACK = 12;
@@ -122,10 +171,22 @@ export function buildPacks(cards: OnePieceCard[]): PackDefinition[] {
       name: resolvePackName(id, packCards),
       cards: packCards,
       baseCards,
+      cardsPerPack: CARDS_PER_BOOSTER,
     });
   }
 
-  return packs.sort((a, b) => b.id.localeCompare(a.id, 'en', { numeric: true }));
+  // Orden de lectura: primero las expansiones principales por número, luego los
+  // extra booster y los premium. Antes iba del más reciente al más antiguo.
+  const FAMILY_ORDER = ['OP', 'EB', 'PRB'];
+  const familyOf = (id: string) => id.replace(/\d+$/, '');
+  const numberOf = (id: string) => Number(id.match(/\d+$/)?.[0] ?? 0);
+
+  return packs.sort((a, b) => {
+    const famA = FAMILY_ORDER.indexOf(familyOf(a.id));
+    const famB = FAMILY_ORDER.indexOf(familyOf(b.id));
+    if (famA !== famB) return famA - famB;
+    return numberOf(a.id) - numberOf(b.id);
+  });
 }
 
 /** Rarezas que puede ocupar cada slot, de preferida a respaldo. */
@@ -202,6 +263,23 @@ export function rollPack(pack: PackDefinition, options: RollOptions = {}): RollR
   const { packsSinceChase = 0, ownedIds } = options;
   const basePool = pack.baseCards;
   const altArtPool = pack.cards.filter((card) => card.id !== card.code);
+
+  // El sobre de promos reparte una sola carta: no tiene slots comunes, solo
+  // el sorteo del "hit" sobre todo su fondo.
+  if (pack.cardsPerPack === 1) {
+    const card = pickRandom(basePool);
+    return {
+      cards: [
+        {
+          card,
+          tier: card.rarity === 'P' ? 'high' : 'mid',
+          isNew: !ownedIds?.has(card.id),
+          isAltArt: card.id !== card.code,
+        },
+      ],
+      packsSinceChase: packsSinceChase + 1,
+    };
+  }
 
   const slots: { key: 'common' | 'uncommon' | 'rare'; count: number; tier: PullTier }[] = [
     { key: 'common', count: 6, tier: 'base' },

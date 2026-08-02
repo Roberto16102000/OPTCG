@@ -1,4 +1,5 @@
 import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
 import { formatSetDisplayName, getSetCodeFromName } from '../utils/cards';
@@ -14,15 +15,44 @@ interface SetProgressRowProps {
   total: number;
   /** Carta de respaldo cuando el set no tiene arte de producto. */
   cover?: OnePieceCard | null;
+  /** Cartas del set, en orden de numeración, para la rejilla desplegable. */
+  cards?: OnePieceCard[];
+  isInCollection?: (cardId: string) => boolean;
+  /** Nombre y código ya resueltos, para quien no tenga un `setName` del catálogo. */
+  displayName?: string;
+  codeOverride?: string;
+  /**
+   * Arte a usar, cuando no se deduce del código. Las colecciones de promos no
+   * llevan código entre corchetes, así que sin esto caerían a la carta.
+   */
+  artKey?: string;
   onPress: () => void;
 }
 
-export function SetProgressRow({ setName, owned, total, cover, onPress }: SetProgressRowProps) {
+/** `OP01-005` → `005`; si no encaja, se usa el código entero. */
+function cardNumber(code: string | undefined): string {
+  const match = code?.match(/-(\w+)$/);
+  return match ? match[1] : code ?? '—';
+}
+
+export function SetProgressRow({
+  setName,
+  owned,
+  total,
+  cover,
+  cards,
+  isInCollection,
+  displayName,
+  codeOverride,
+  artKey: artKeyProp,
+  onPress,
+}: SetProgressRowProps) {
+  const [expanded, setExpanded] = useState(false);
   const { getDisplayImageUri } = useImageRegion();
   const pct = total ? Math.min(100, Math.round((owned / total) * 100)) : 0;
-  const code = getSetCodeFromName(setName);
-  const artKey = code?.replace(/[^A-Z0-9]/gi, '').toUpperCase() ?? '';
-  const boosterUri = getBoosterImageUriForSetCode(code);
+  const code = codeOverride ?? getSetCodeFromName(setName);
+  const artKey = artKeyProp ?? code?.replace(/[^A-Z0-9]/gi, '').toUpperCase() ?? '';
+  const boosterUri = getBoosterImageUriForSetCode(artKeyProp ?? code);
   const coverUri = !boosterUri && cover ? getDisplayImageUri(cover) : undefined;
   // Sin arte de sobre (mazos ST y productos sueltos) el icono distingue familia.
   const fallbackIcon = code?.toUpperCase().startsWith('ST')
@@ -30,10 +60,14 @@ export function SetProgressRow({ setName, owned, total, cover, onPress }: SetPro
     : 'star-four-points-outline';
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-      onPress={onPress}
-    >
+    <View style={styles.row}>
+      <Pressable
+        onPress={() => setExpanded((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${displayName ?? formatSetDisplayName(setName)}, ${owned} de ${total}`}
+        style={({ pressed }) => [pressed && styles.rowPressed]}
+      >
       <View style={styles.top}>
         <View style={styles.thumb}>
           {boosterUri ? (
@@ -58,7 +92,7 @@ export function SetProgressRow({ setName, owned, total, cover, onPress }: SetPro
         <View style={styles.titles}>
           {code ? <Text style={styles.code}>{code}</Text> : null}
           <Text style={styles.name} numberOfLines={2}>
-            {formatSetDisplayName(setName)}
+            {displayName ?? formatSetDisplayName(setName)}
           </Text>
         </View>
         <Text style={styles.fraction}>
@@ -70,14 +104,85 @@ export function SetProgressRow({ setName, owned, total, cover, onPress }: SetPro
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${pct}%` }]} />
       </View>
-      <Text style={styles.pctLabel}>{pct}% complete</Text>
-    </Pressable>
+      <View style={styles.footRow}>
+        <Text style={styles.pctLabel}>{pct}% complete</Text>
+        <Text style={styles.chevron}>{expanded ? '▲' : '▼'}</Text>
+      </View>
+      </Pressable>
+
+      {expanded ? (
+        <View style={styles.grid}>
+          {(cards ?? []).map((card) => {
+            const has = isInCollection?.(card.id) ?? false;
+            const uri = has ? getDisplayImageUri(card) : undefined;
+            return (
+              <Pressable
+                key={card.id}
+                onPress={onPress}
+                accessibilityRole="button"
+                accessibilityLabel={`${card.name}${has ? '' : ', te falta'}`}
+                style={[styles.slot, !has && styles.slotMissing]}
+              >
+                {has && uri ? (
+                  <CardImage
+                    uri={uri}
+                    fallbackUri={card.images?.small}
+                    width={SLOT_WIDTH}
+                    height={SLOT_HEIGHT}
+                    priority="low"
+                    recyclingKey={card.id}
+                  />
+                ) : (
+                  <Text style={styles.slotNumber}>{cardNumber(card.code)}</Text>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const THUMB_HEIGHT = 54;
+const SLOT_WIDTH = 62;
+const SLOT_HEIGHT = 86;
 
 const styles = StyleSheet.create({
+  footRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  chevron: {
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  /** Rejilla de huecos: la carta si la tienes, su número si te falta. */
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  slot: {
+    width: SLOT_WIDTH,
+    height: SLOT_HEIGHT,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+  },
+  slotMissing: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceSunken,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  slotNumber: {
+    color: colors.textFaint,
+    fontSize: 13,
+    fontWeight: '800',
+  },
   thumb: {
     width: 36,
     height: THUMB_HEIGHT,

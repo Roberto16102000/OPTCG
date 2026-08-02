@@ -1,8 +1,15 @@
 import { useState, type ReactNode } from 'react';
 
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
-import { colors, radii, spacing } from '../constants/theme';
+import { breakpoints, colors, radii, spacing } from '../constants/theme';
 
 function FilterChevron({ expanded }: { expanded: boolean }) {
   return (
@@ -22,6 +29,9 @@ interface CollapsibleFiltersProps {
 
 
 export function CollapsibleFilters({ children, activeCount = 0 }: CollapsibleFiltersProps) {
+
+  const { width, height } = useWindowDimensions();
+  const narrow = width < breakpoints.compact;
 
   const [open, setOpen] = useState(false);
 
@@ -63,7 +73,22 @@ export function CollapsibleFilters({ children, activeCount = 0 }: CollapsibleFil
 
       </Pressable>
 
-      {open ? <View style={styles.body}>{children}</View> : null}
+      {open ? (
+        narrow ? (
+          // En estrecho el desplegable ocupaba toda la pantalla y empujaba el
+          // grid fuera: se acota a media pantalla y se desplaza por dentro.
+          <ScrollView
+            style={[styles.body, { maxHeight: Math.round(height * 0.45) }]}
+            contentContainerStyle={styles.bodyContent}
+            showsVerticalScrollIndicator
+            nestedScrollEnabled
+          >
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={styles.body}>{children}</View>
+        )
+      ) : null}
 
     </View>
 
@@ -182,6 +207,11 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-135deg' }],
   },
 
+  bodyContent: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
   body: {
 
     marginTop: spacing.sm,

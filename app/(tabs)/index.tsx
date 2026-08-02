@@ -12,6 +12,7 @@ import {
 
   Pressable,
 
+  ScrollView,
   StyleSheet,
 
   Text,
@@ -38,8 +39,9 @@ import {
 
 } from '../../src/api/official';
 
-import { Panel, PirateButton } from '../../src/components/ui';
-import { SIDEBAR_COLLAPSED_WIDTH } from '../../src/components/SidebarNav';
+import MaterialDesignIcons from '@react-native-vector-icons/material-design-icons';
+import { FilterLayoutProvider } from '../../src/components/filters/FilterLayoutContext';
+import { Panel, PirateButton, SectionHeading } from '../../src/components/ui';
 import { CatalogCardTile } from '../../src/components/CatalogCardTile';
 import { CatalogPagination } from '../../src/components/CatalogPagination';
 import { CardDetailModal } from '../../src/components/CardDetailModal';
@@ -49,7 +51,7 @@ import { OfficialCatalogBanner } from '../../src/components/OfficialCatalogBanne
 import { RegionFilter } from '../../src/components/RegionFilter';
 import { SetFilter } from '../../src/components/SetFilter';
 import { FamilyFilter } from '../../src/components/FamilyFilter';
-import { colors, radii, spacing } from '../../src/constants/theme';
+import { breakpoints, colors, radii, spacing } from '../../src/constants/theme';
 
 import { useCollection } from '../../src/context/CollectionContext';
 import { useCollectionBounty } from '../../src/context/CollectionBountyContext';
@@ -82,7 +84,7 @@ import {
 
   CATALOG_PAGE_SIZE,
 
-  GRID_COLUMNS,
+  getGridColumns,
 
   getPageSlice,
 
@@ -102,6 +104,9 @@ import { CATALOG_THUMB, prefetchImageUris } from '../../src/utils/imageLoading';
 
 
 
+/** Ancho de la columna de filtros; se descuenta del espacio del grid. */
+const FILTERS_COLUMN_WIDTH = 264;
+
 const DEFAULT_FILTERS: CatalogFiltersState = {
   color: 'all',
   cardType: 'all',
@@ -115,9 +120,7 @@ const DEFAULT_FILTERS: CatalogFiltersState = {
 
 export default function CatalogScreen() {
   const { width: windowWidth } = useWindowDimensions();
-  const [gridWidth, setGridWidth] = useState(0);
-  const effectiveGridWidth =
-    gridWidth > 0 ? gridWidth : Math.max(320, windowWidth - SIDEBAR_COLLAPSED_WIDTH);
+  const narrow = windowWidth < breakpoints.compact;
 
   const { getDisplayImageUri, region } = useImageRegion();
 
@@ -158,9 +161,23 @@ export default function CatalogScreen() {
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
+  // La columna arranca oculta: al entrar manda el catálogo, no los filtros.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // El ancho se deduce, no se mide: `onLayout` no vuelve a dispararse cuando
+  // aparece la columna, y el grid seguía calculando columnas de más.
+  const showFiltersColumn = !narrow && filtersOpen;
+  const effectiveGridWidth = Math.max(
+    320,
+    windowWidth - (showFiltersColumn ? FILTERS_COLUMN_WIDTH : 0)
+  );
 
 
-  const numColumns = GRID_COLUMNS;
+
+  const numColumns = useMemo(
+    () => getGridColumns(effectiveGridWidth),
+    [effectiveGridWidth]
+  );
 
   const tileSize = useMemo(
     () => getTileSize(effectiveGridWidth, numColumns),
@@ -527,6 +544,30 @@ export default function CatalogScreen() {
 
   }
 
+  const filtersContent = (
+    <>
+      <SetFilter
+        sets={availableSets}
+        setCounts={setCounts}
+        totalCount={cards.length}
+        value={selectedSet}
+        onChange={setSelectedSet}
+      />
+      <FamilyFilter
+        families={availableFamilies}
+        familyCounts={familyCounts}
+        totalCount={cards.length}
+        value={catalogFilters.family}
+        onChange={(family) => setCatalogFilters((f) => ({ ...f, family }))}
+      />
+      <CatalogFilters
+        filters={catalogFilters}
+        onChange={(patch) => setCatalogFilters((f) => ({ ...f, ...patch }))}
+      />
+      <RegionFilter />
+    </>
+  );
+
   const catalogHeader = (
     <View style={styles.listHeader}>
 
@@ -539,37 +580,63 @@ export default function CatalogScreen() {
           onChangeText={setSearch}
           returnKeyType="search"
         />
-        <PirateButton
-          label={syncing ? '...' : '↻ Sync'}
-          variant="primary"
-          onPress={syncFullDatabase}
-          disabled={syncing}
-        />
+        {!narrow && cards.length > 0 ? (
+          <Pressable
+            onPress={() => setFiltersOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: filtersOpen }}
+            accessibilityLabel={filtersOpen ? 'Ocultar filtros' : 'Mostrar filtros'}
+            style={({ pressed }) => [
+              styles.filtersToggle,
+              filtersOpen && styles.filtersToggleActive,
+              pressed && styles.syncIconPressed,
+            ]}
+          >
+            <MaterialDesignIcons
+              name={filtersOpen ? 'filter-off-outline' : 'filter-variant'}
+              size={20}
+              color={filtersOpen ? colors.textOnPrimary : colors.text}
+            />
+            <Text
+              style={[styles.filtersToggleText, filtersOpen && styles.filtersToggleTextActive]}
+            >
+              Filtros{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {narrow ? (
+          <Pressable
+            onPress={syncFullDatabase}
+            disabled={syncing}
+            accessibilityRole="button"
+            accessibilityLabel="Sincronizar catálogo"
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.syncIcon,
+              pressed && styles.syncIconPressed,
+              syncing && styles.syncIconDisabled,
+            ]}
+          >
+            <MaterialDesignIcons
+              name={syncing ? 'progress-clock' : 'refresh'}
+              size={22}
+              color={colors.textOnPrimary}
+            />
+          </Pressable>
+        ) : (
+          <PirateButton
+            label={syncing ? '...' : '↻ Sync'}
+            variant="primary"
+            onPress={syncFullDatabase}
+            disabled={syncing}
+          />
+        )}
       </Panel>
 
-      {cards.length > 0 && (
-        <CollapsibleFilters activeCount={activeFilterCount}>
-          <SetFilter
-            sets={availableSets}
-            setCounts={setCounts}
-            totalCount={cards.length}
-            value={selectedSet}
-            onChange={setSelectedSet}
-          />
-          <FamilyFilter
-            families={availableFamilies}
-            familyCounts={familyCounts}
-            totalCount={cards.length}
-            value={catalogFilters.family}
-            onChange={(family) => setCatalogFilters((f) => ({ ...f, family }))}
-          />
-          <CatalogFilters
-            filters={catalogFilters}
-            onChange={(patch) => setCatalogFilters((f) => ({ ...f, ...patch }))}
-          />
-          <RegionFilter />
-        </CollapsibleFilters>
-      )}
+      {cards.length > 0 && narrow ? (
+        <CollapsibleFilters activeCount={activeFilterCount}>{filtersContent}</CollapsibleFilters>
+      ) : null}
 
       {syncProgress ? <Text style={styles.progress}>{syncProgress}</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -597,14 +664,28 @@ export default function CatalogScreen() {
       {loading && cards.length === 0 ? (
         <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
       ) : (
-        <>
+        <View style={styles.body}>
+          {showFiltersColumn && cards.length > 0 ? (
+            <View style={styles.filtersColumn}>
+              <SectionHeading
+                title="Filtros"
+                meta={activeFilterCount > 0 ? `${activeFilterCount} activos` : undefined}
+                style={styles.filtersHeading}
+              />
+              <ScrollView
+                style={styles.filtersScroll}
+                contentContainerStyle={styles.filtersContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <FilterLayoutProvider stacked>{filtersContent}</FilterLayoutProvider>
+              </ScrollView>
+            </View>
+          ) : null}
+
+          <View style={styles.gridColumn}>
           {catalogHeader}
           <FlatList
             style={styles.gridList}
-            onLayout={(e) => {
-              const w = Math.floor(e.nativeEvent.layout.width);
-              if (w > 0) setGridWidth(w);
-            }}
             key={`grid-${numColumns}`}
             data={pageCards}
             keyExtractor={(item) => item.id}
@@ -636,7 +717,8 @@ export default function CatalogScreen() {
               </Text>
             }
           />
-        </>
+          </View>
+        </View>
       )}
 
 
@@ -728,6 +810,64 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
 
+  body: {
+    flex: 1,
+    flexDirection: 'row',
+    minHeight: 0,
+  },
+  gridColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  /** Columna de filtros: ocupa el hueco que dejó la barra lateral. */
+  filtersColumn: {
+    width: FILTERS_COLUMN_WIDTH,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    backgroundColor: colors.gridPanel,
+    paddingTop: spacing.md,
+  },
+  filtersHeading: {
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  filtersScroll: { flex: 1 },
+  filtersContent: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  filtersToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    height: 44,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  filtersToggleActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filtersToggleText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  filtersToggleTextActive: { color: colors.textOnPrimary },
+  /** En estrecho el sync es un icono junto al buscador, no una barra entera. */
+  syncIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  syncIconPressed: { opacity: 0.82 },
+  syncIconDisabled: { opacity: 0.45 },
   header: {
     flexDirection: 'row',
     marginHorizontal: spacing.md,
@@ -738,6 +878,7 @@ const styles = StyleSheet.create({
 
   search: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: colors.glass,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,

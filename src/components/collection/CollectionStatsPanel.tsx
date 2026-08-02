@@ -65,7 +65,13 @@ export function CollectionStatsPanel({
 
   return (
     <View style={[styles.panel, compact && styles.panelCompact]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        // Apilado en movil el panel no debe capturar el gesto: lo hace la
+        // pantalla entera, o quedan varias ventanitas que no dejan bajar.
+        scrollEnabled={!compact}
+      >
         <Widget title="Collection Stats">
           <StatRow icon="🃏" label="Total Cards" value={String(totalCopies)} />
           <StatRow icon="✨" label="Unique Cards" value={String(collectionList.length)} />
@@ -162,7 +168,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 0,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    maxHeight: 360,
   },
   scroll: {
     paddingHorizontal: spacing.md,

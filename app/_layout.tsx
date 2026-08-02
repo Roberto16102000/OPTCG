@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CollectionProvider } from '../src/context/CollectionContext';
 import { CollectionBountyProvider } from '../src/context/CollectionBountyContext';
+import { PackCollectionProvider } from '../src/context/PackCollectionContext';
 import { ImageRegionProvider } from '../src/context/ImageRegionContext';
 import { colors } from '../src/constants/theme';
 
@@ -12,6 +13,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
     <CollectionProvider>
       <CollectionBountyProvider>
+      <PackCollectionProvider>
       <ImageRegionProvider>
       <StatusBar style="light" />
       <Stack
@@ -29,6 +31,7 @@ export default function RootLayout() {
         />
       </Stack>
       </ImageRegionProvider>
+      </PackCollectionProvider>
       </CollectionBountyProvider>
     </CollectionProvider>
     </SafeAreaProvider>

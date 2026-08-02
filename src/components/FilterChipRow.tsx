@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { colors, radii, spacing } from '../constants/theme';
+import { useFilterLayout } from './filters/FilterLayoutContext';
 
 import type { ChipFilterValue } from '../utils/cardFilters';
 
@@ -36,7 +37,8 @@ export function FilterChipRow({ label, options, value, onChange, compact }: Filt
 
   const { width } = useWindowDimensions();
 
-  const sideBySide = width >= 480;
+  const { stacked } = useFilterLayout();
+  const sideBySide = !stacked && width >= 480;
 
 
 

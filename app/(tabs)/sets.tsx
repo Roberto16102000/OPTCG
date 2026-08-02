@@ -22,12 +22,17 @@ import {
   sortSetNames,
 } from '../../src/utils/cards';
 
+/** Colecciones sin código propio que comparten el arte del sobre de promos. */
+const PROMO_ART_SETS = new Set(['Promotion card', 'Other Product Card']);
+
 interface SetStat {
   setName: string;
   total: number;
   owned: number;
   /** Carta que representa al set cuando no hay arte de producto. */
   cover: OnePieceCard | null;
+  /** Cartas del set, para la rejilla que se despliega. */
+  cards: OnePieceCard[];
 }
 
 export default function SetsScreen() {
@@ -41,15 +46,20 @@ export default function SetsScreen() {
     for (const card of cards) {
       const setName = getCardSetName(card);
       if (!setName) continue;
-      const entry = map.get(setName) ?? { setName, total: 0, owned: 0, cover: null };
+      const entry = map.get(setName) ?? { setName, total: 0, owned: 0, cover: null, cards: [] };
       entry.total += 1;
       if (isInCollection(card.id)) entry.owned += 1;
+      entry.cards.push(card);
       // El líder manda; si no lo hay, vale la primera carta base del set.
       const isBase = card.id === card.code;
       if (isBase && (!entry.cover || (card.type === 'LEADER' && entry.cover.type !== 'LEADER'))) {
         entry.cover = card;
       }
       map.set(setName, entry);
+    }
+    // Orden por código para que la rejilla siga la numeración impresa.
+    for (const entry of map.values()) {
+      entry.cards.sort((a, b) => (a.code ?? '').localeCompare(b.code ?? ''));
     }
     return sortSetNames([...map.keys()]).map((name) => map.get(name)!);
   }, [cards, isInCollection]);
@@ -103,6 +113,9 @@ export default function SetsScreen() {
             owned={item.owned}
             total={item.total}
             cover={item.cover}
+            artKey={PROMO_ART_SETS.has(item.setName.trim()) ? 'PROMO' : undefined}
+            cards={item.cards}
+            isInCollection={isInCollection}
             onPress={() => openSetInCatalog(item.setName)}
           />
         )}

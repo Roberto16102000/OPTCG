@@ -30,6 +30,48 @@ export const WANTED_SLOTS: Record<string, Slot> = {
   verified: { left: 48, top: 95.5, width: 44, height: 3 },
 };
 
+/**
+ * Ancho de cada zona cuando el poster se apila en vertical. El diseño original
+ * es apaisado (1552x1013) con posiciones absolutas en %, asi que en un movil
+ * todo se aplasta en unos 245 px de alto y se solapa. En estrecho se abandona
+ * la posicion absoluta y las zonas fluyen, conservando el agrupado por filas.
+ */
+const STACK_WIDTHS: Record<string, string> = {
+  close: '100%',
+  headerMeta: '100%',
+  headerName: '100%',
+  card: '100%',
+  navPrev: '50%',
+  navNext: '50%',
+  statLife: '32%',
+  statPower: '32%',
+  statColor: '32%',
+  price: '100%',
+  type: '100%',
+  effect: '100%',
+  flavor: '100%',
+  actions: '100%',
+  verified: '100%',
+};
+
+/** Zonas que no se muestran apiladas: el dato ya aparece en la carta. */
+const STACK_HIDDEN = new Set(['statLife', 'statPower', 'statColor']);
+
+export function wantedStackedStyle(key: string): ViewStyle {
+  if (STACK_HIDDEN.has(key)) return { display: 'none' };
+  return {
+    position: 'relative',
+    width: (STACK_WIDTHS[key] ?? '100%') as ViewStyle['width'],
+    marginBottom: 10,
+  };
+}
+
+/** Carta apilada: manda el ancho del panel, no el hueco del pergamino. */
+export function wantedStackedCardSize(panelWidth: number) {
+  const width = Math.round(Math.min(panelWidth * 0.68, 300));
+  return { width, height: Math.round(width / CARD_ASPECT) };
+}
+
 export function wantedSlotStyle(slot: Slot): ViewStyle {
   return {
     position: 'absolute',
@@ -41,8 +83,12 @@ export function wantedSlotStyle(slot: Slot): ViewStyle {
 }
 
 export function wantedPanelSize(windowWidth: number, maxHeight: number, wide: boolean) {
-  const width = wide ? WANTED_PANEL.width : windowWidth;
-  const height = Math.min(wide ? WANTED_PANEL.height : maxHeight, width / WANTED_BG_ASPECT);
+  if (!wide) {
+    // Apilado: el alto lo marca el contenido, no la proporcion del poster.
+    return { width: Math.min(windowWidth - 16, 520), height: maxHeight };
+  }
+  const width = WANTED_PANEL.width;
+  const height = Math.min(WANTED_PANEL.height, width / WANTED_BG_ASPECT);
   return { width, height };
 }
 

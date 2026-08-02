@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Animated,
   ImageBackground,
@@ -40,6 +40,8 @@ import {
   wantedCardImageSize,
   wantedPanelSize,
   wantedSlotStyle,
+  wantedStackedCardSize,
+  wantedStackedStyle,
   WANTED_SLOTS,
 } from '../utils/wantedModalSlots';
 
@@ -82,6 +84,9 @@ interface CardDetailModalProps {
   prefetchUris?: string[];
 }
 
+/** En estrecho las zonas fluyen en vez de posicionarse en absoluto. */
+const StackedContext = createContext(false);
+
 function SlotWrap({
   slotKey,
   children,
@@ -91,8 +96,15 @@ function SlotWrap({
   children: ReactNode;
   style?: object;
 }) {
+  const stacked = useContext(StackedContext);
   return (
-    <View style={[wantedSlotStyle(WANTED_SLOTS[slotKey]), style]} pointerEvents="box-none">
+    <View
+      style={[
+        stacked ? wantedStackedStyle(slotKey) : wantedSlotStyle(WANTED_SLOTS[slotKey]),
+        style,
+      ]}
+      pointerEvents="box-none"
+    >
       {children}
     </View>
   );
@@ -122,7 +134,9 @@ export function CardDetailModal({
   const sheetMaxHeight = windowHeight - insets.top - 8;
   const panel = wantedPanelSize(windowWidth, sheetMaxHeight, wide);
   const closeSlot = WANTED_SLOTS.close;
-  const cardSize = wantedCardImageSize(panel.width, panel.height);
+  const cardSize = wide
+    ? wantedCardImageSize(panel.width, panel.height)
+    : wantedStackedCardSize(panel.width);
   const cardImgW = cardSize.width;
   const cardImgH = cardSize.height;
   const closeFontSize = Math.round(panel.width * (closeSlot.width / 100) * 0.72);
@@ -283,58 +297,35 @@ export function CardDetailModal({
     )
   );
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <View
-        style={[
-          styles.overlay,
-          wide ? styles.overlayWide : styles.overlayMobile,
-          { paddingTop: wide ? insets.top : 0, paddingBottom: wide ? insets.bottom : 0 },
-        ]}
-      >
-        <CollectionRewardOverlay event={reward} onClear={() => setReward(null)} />
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Cerrar" />
-
-        <View style={[styles.panelShell, { width: panel.width, height: panel.height }]}>
-          <ImageBackground
-            source={MODAL_BODY_BG}
-            style={styles.canvas}
-            imageStyle={styles.canvasImage}
-            resizeMode="stretch"
-          >
-            <Pressable
-              style={[wantedSlotStyle(WANTED_SLOTS.close), styles.closeHit]}
-              onPress={onClose}
-              accessibilityLabel="Cerrar"
-            >
-              <Text
-                includeFontPadding={false}
-                style={[
-                  styles.closeText,
-                  {
-                    fontSize: closeFontSize,
-                    lineHeight: closeFontSize,
-                  },
-                ]}
+  const posterContent = (
+    <>
+            {wide ? (
+              <Pressable
+                style={[wantedSlotStyle(WANTED_SLOTS.close), styles.closeHit]}
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar"
               >
-                ✕
-              </Text>
-            </Pressable>
+                <Text
+                  {...(Platform.OS === 'android' ? { includeFontPadding: false } : {})}
+                  style={[
+                    styles.closeText,
+                    { fontSize: closeFontSize, lineHeight: closeFontSize },
+                  ]}
+                >
+                  ✕
+                </Text>
+              </Pressable>
+            ) : null}
 
             <SlotWrap slotKey="headerMeta" style={styles.headerMetaSlot}>
-              <Text style={styles.meta} numberOfLines={1}>
+              <Text style={[styles.meta, !wide && styles.metaStacked]} numberOfLines={1}>
                 {formatCardMetaLine(card)}
               </Text>
             </SlotWrap>
 
             <SlotWrap slotKey="headerName" style={styles.headerNameSlot}>
-              <Text style={styles.cardName} numberOfLines={2}>
+              <Text style={[styles.cardName, !wide && styles.cardNameStacked]} numberOfLines={2}>
                 {card.name}
               </Text>
             </SlotWrap>
@@ -483,7 +474,59 @@ export function CardDetailModal({
             <SlotWrap slotKey="verified" style={styles.centerSlot}>
               <Text style={styles.verified}>🔒 Producto oficial verificado</Text>
             </SlotWrap>
-          </ImageBackground>
+    </>
+  );
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View
+        style={[
+          styles.overlay,
+          wide ? styles.overlayWide : styles.overlayMobile,
+          { paddingTop: wide ? insets.top : 0, paddingBottom: wide ? insets.bottom : 0 },
+        ]}
+      >
+        <CollectionRewardOverlay event={reward} onClear={() => setReward(null)} />
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Cerrar" />
+
+        <View style={[styles.panelShell, { width: panel.width, height: panel.height }]}>
+          <StackedContext.Provider value={!wide}>
+            {wide ? (
+              <ImageBackground
+                source={MODAL_BODY_BG}
+                style={styles.canvas}
+                imageStyle={styles.canvasImage}
+                resizeMode="stretch"
+              >
+                {posterContent}
+              </ImageBackground>
+            ) : (
+              <ScrollView
+                style={styles.stackScroll}
+                contentContainerStyle={styles.stackContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {posterContent}
+              </ScrollView>
+            )}
+            {!wide ? (
+              <Pressable
+                style={styles.closeStacked}
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar"
+                hitSlop={12}
+              >
+                <Text style={[styles.closeText, styles.closeTextStacked]}>✕</Text>
+              </Pressable>
+            ) : null}
+          </StackedContext.Provider>
         </View>
       </View>
     </Modal>
@@ -491,6 +534,48 @@ export function CardDetailModal({
 }
 
 const styles = StyleSheet.create({
+  /**
+   * Apilado el cierre no puede heredar el slot: su tamano sale de un 2.47 % del
+   * ancho del panel, que en movil son 6 px, y su color claro se pierde sobre el
+   * papel. Aqui es un boton propio con area tactil suficiente.
+   */
+  closeStacked: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(92, 61, 33, 0.12)',
+    zIndex: 10,
+  },
+  closeTextStacked: {
+    color: SLOT_INK.text,
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  /** Sobre pergamino el texto claro del poster no se lee: pasa a tinta. */
+  metaStacked: { color: SLOT_INK.label },
+  cardNameStacked: {
+    color: SLOT_INK.text,
+    fontSize: 24,
+    textShadowColor: 'transparent',
+  },
+  /** Version apilada: papel liso en vez del poster estirado a lo alto. */
+  stackScroll: {
+    flex: 1,
+    backgroundColor: '#f2e4c6',
+    borderRadius: 12,
+  },
+  stackContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: wanted.gapMd,
+  },
   overlay: { flex: 1 },
   overlayWide: {
     justifyContent: 'center',

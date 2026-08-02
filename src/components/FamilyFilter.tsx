@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { colors, spacing } from '../constants/theme';
+import { useFilterLayout } from './filters/FilterLayoutContext';
 import type { ChipFilterValue } from '../utils/cardFilters';
 
 interface FamilyFilterProps {
@@ -33,7 +34,8 @@ export function FamilyFilter({
   onChange,
 }: FamilyFilterProps) {
   const { width } = useWindowDimensions();
-  const sideBySide = width >= 480;
+  const { stacked } = useFilterLayout();
+  const sideBySide = !stacked && width >= 480;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 

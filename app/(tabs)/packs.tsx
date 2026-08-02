@@ -11,15 +11,16 @@ import {
 import { CardImage } from '../../src/components/CardImage';
 import { PackOpeningOverlay } from '../../src/components/packs/PackOpeningOverlay';
 import { colors, radii, spacing } from '../../src/constants/theme';
-import { useCollection } from '../../src/context/CollectionContext';
+import { usePackCollection } from '../../src/context/PackCollectionContext';
 import { useImageRegion } from '../../src/context/ImageRegionContext';
 import { useCatalogCards } from '../../src/hooks/useCatalogCards';
 import { usePackEnergy } from '../../src/hooks/usePackEnergy';
 import { formatCountdown, MAX_FREE_CHARGES } from '../../src/storage/packEnergy';
 import { PackCarousel } from '../../src/components/packs/PackCarousel';
+import { SetProgressRow } from '../../src/components/SetProgressRow';
 import { Panel, PirateButton, SectionHeading, StatBox } from '../../src/components/ui';
 import { hasBoosterArt } from '../../src/utils/boosterImages';
-import { buildPacks, rollPack, type PulledCard } from '../../src/utils/packs';
+import { buildPacks, buildPromoPack, rollPack, type PulledCard } from '../../src/utils/packs';
 import { getRarityBadgeColors, getRarityBadgeLabel } from '../../src/utils/rarity';
 
 const MULTI_OPEN = 5;
@@ -33,7 +34,14 @@ const MIN_VARIETY_FOR_DEFAULT = 40;
 
 export default function PacksScreen() {
   const { cards, loading: catalogLoading } = useCatalogCards();
-  const { collection, addCard } = useCollection();
+  const {
+    packCollection,
+    addPackCard,
+    packList,
+    totalCopies,
+    hasCard,
+    loading: packLoading,
+  } = usePackCollection();
   const {
     state: energy,
     loading: energyLoading,
@@ -47,14 +55,17 @@ export default function PacksScreen() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pulled, setPulled] = useState<PulledCard[] | null>(null);
+  const [openedLabel, setOpenedLabel] = useState<string | null>(null);
   const [showOdds, setShowOdds] = useState(false);
   const [lastMessage, setLastMessage] = useState<string | null>(null);
 
   // Solo sobres con arte: sin ella la ficha queda a medias (p. ej. EB-04).
-  const packs = useMemo(
-    () => buildPacks(cards).filter((pack) => hasBoosterArt(pack.id)),
-    [cards]
-  );
+  // El de promos va al final: no es una expansión, es el cajón de sastre.
+  const packs = useMemo(() => {
+    const boosters = buildPacks(cards).filter((pack) => hasBoosterArt(pack.id));
+    const promo = buildPromoPack(cards);
+    return promo && hasBoosterArt(promo.id) ? [...boosters, promo] : boosters;
+  }, [cards]);
   const defaultIndex = useMemo(() => {
     const varied = packs.findIndex(
       (pack) => pack.baseCards.length >= MIN_VARIETY_FOR_DEFAULT
@@ -71,10 +82,10 @@ export default function PacksScreen() {
   const ownedInPack = useMemo(() => {
     if (!selected) return 0;
     return selected.baseCards.reduce(
-      (count, card) => (collection[card.id] ? count + 1 : count),
+      (count, card) => (packCollection[card.id] ? count + 1 : count),
       0
     );
-  }, [collection, selected]);
+  }, [packCollection, selected]);
 
   const open = useCallback(
     (packCount: number) => {
@@ -85,7 +96,7 @@ export default function PacksScreen() {
         return;
       }
 
-      const ownedIds = new Set(Object.keys(collection));
+      const ownedIds = new Set(Object.keys(packCollection));
       let since = energy.packsSinceChase[selected.id] ?? 0;
       const all: PulledCard[] = [];
 
@@ -101,15 +112,16 @@ export default function PacksScreen() {
 
       recordOpening(selected.id, since, packCount);
       setLastMessage(null);
+      setOpenedLabel(selected.label);
       setPulled(all);
     },
-    [collection, energy, recordOpening, selected, spend]
+    [packCollection, energy, recordOpening, selected, spend]
   );
 
   const commit = useCallback(async () => {
     if (!pulled) return;
     for (const pull of pulled) {
-      await addCard(pull.card);
+      await addPackCard(pull.card);
     }
     const newCount = pulled.filter((pull) => pull.isNew).length;
     const dupeCount = pulled.length - newCount;
@@ -117,12 +129,13 @@ export default function PacksScreen() {
     // Se nombran las repetidas: si no, con un sobre de poca variedad parece
     // que el botón no ha hecho nada.
     const dupePart = dupeCount > 0 ? ` · ${dupeCount} repetida${dupeCount === 1 ? '' : 's'}` : '';
+    const where = openedLabel ? ` en ${openedLabel}` : '';
     setLastMessage(
       newCount > 0
-        ? `+${newCount} carta${newCount === 1 ? '' : 's'} nueva${newCount === 1 ? '' : 's'}${dupePart}`
-        : `Sin cartas nuevas · ${dupeCount} repetida${dupeCount === 1 ? '' : 's'} sumadas a tu colección`
+        ? `+${newCount} carta${newCount === 1 ? '' : 's'} nueva${newCount === 1 ? '' : 's'}${dupePart}${where}`
+        : `Sin cartas nuevas${where} · ${dupeCount} repetida${dupeCount === 1 ? '' : 's'}`
     );
-  }, [addCard, pulled]);
+  }, [addPackCard, openedLabel, pulled]);
 
   if (catalogLoading || energyLoading) {
     return (
@@ -159,6 +172,9 @@ export default function PacksScreen() {
             onSelect={(id) => {
               setSelectedId(id);
               setShowOdds(false);
+              // El aviso es de la apertura anterior: al cambiar de sobre
+              // quedaría bajo una cabecera que no le corresponde.
+              setLastMessage(null);
             }}
           />
         </View>
@@ -224,7 +240,16 @@ export default function PacksScreen() {
           {lastMessage ? <Text style={styles.message}>{lastMessage}</Text> : null}
         </Panel>
 
-        {showOdds ? <PossibleCards pack={selected} ownedIds={collection} /> : null}
+        {showOdds ? <PossibleCards pack={selected} ownedIds={packCollection} /> : null}
+
+        <PackCollectionSection
+          pack={selected}
+          packCollection={packCollection}
+          hasCard={hasCard}
+          uniqueCount={packList.length}
+          totalCopies={totalCopies}
+          loading={packLoading}
+        />
       </ScrollView>
 
       {pulled ? (
@@ -238,6 +263,90 @@ export default function PacksScreen() {
         />
       ) : null}
     </View>
+  );
+}
+
+/**
+ * Cartas obtenidas en el simulador. Van aquí y no en la pestaña Collection,
+ * que representa lo que tienes en físico.
+ */
+/**
+ * Colección del sobre seleccionado, con la misma rejilla numerada que Sets pero
+ * contando solo lo abierto en el simulador. Muestra el sobre en pantalla, no la
+ * lista de todos: antes aparecían filas de sobres que no estabas mirando.
+ */
+function PackCollectionSection({
+  pack,
+  packCollection,
+  hasCard,
+  uniqueCount,
+  totalCopies,
+  loading,
+}: {
+  pack: ReturnType<typeof buildPacks>[number];
+  packCollection: Record<string, unknown>;
+  hasCard: (cardId: string) => boolean;
+  uniqueCount: number;
+  totalCopies: number;
+  loading: boolean;
+}) {
+  const owned = useMemo(
+    () => pack.baseCards.reduce((n, card) => (hasCard(card.id) ? n + 1 : n), 0),
+    [pack, hasCard]
+  );
+
+  const copiesHere = useMemo(() => {
+    const prefix = `${pack.id.toUpperCase()}-`;
+    return Object.entries(packCollection).reduce((sum, [id, entry]) => {
+      if (!id.toUpperCase().startsWith(prefix)) return sum;
+      return sum + ((entry as { quantity?: number }).quantity ?? 1);
+    }, 0);
+  }, [pack, packCollection]);
+
+  return (
+    <Panel style={styles.packCollection}>
+      <SectionHeading
+        title={`Colección ${pack.label}`}
+        meta={`${owned} únicas · ${copiesHere} copias`}
+        style={styles.oddsHeading}
+      />
+      <Text style={styles.packCollectionHint}>
+        Solo cartas abiertas aquí. En total llevas {uniqueCount} únicas y {totalCopies} copias
+        entre todos los sobres.
+      </Text>
+      {loading ? (
+        // Sin esto se pintan ceros durante la carga y parece que no hay nada.
+        <ActivityIndicator color={colors.goldInk} />
+      ) : pack.subSets ? (
+        // El sobre agrupa varias colecciones: una fila por cada una, igual que
+        // se ven en la pestaña Sets.
+        pack.subSets.map((group) => (
+          <SetProgressRow
+            key={group.name}
+            setName={group.name}
+            displayName={group.name}
+            codeOverride={pack.label}
+            artKey={pack.id}
+            owned={group.cards.reduce((n, card) => (hasCard(card.id) ? n + 1 : n), 0)}
+            total={group.cards.length}
+            cards={group.cards}
+            isInCollection={hasCard}
+            onPress={() => {}}
+          />
+        ))
+      ) : (
+        <SetProgressRow
+          setName={pack.name}
+          displayName={pack.name}
+          codeOverride={pack.label}
+          owned={owned}
+          total={pack.baseCards.length}
+          cards={pack.baseCards}
+          isInCollection={hasCard}
+          onPress={() => {}}
+        />
+      )}
+    </Panel>
   );
 }
 
@@ -321,7 +430,7 @@ const styles = StyleSheet.create({
     maxWidth: 420,
   },
   content: {
-    padding: spacing.lg,
+    padding: spacing.md,
     gap: spacing.md,
     paddingBottom: spacing.xl,
   },
@@ -375,6 +484,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   openBtn: {
@@ -396,6 +506,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  packCollection: {
+    marginTop: spacing.sm,
+  },
+  packCollectionHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginBottom: spacing.sm,
   },
   oddsHeading: {
     marginBottom: spacing.sm,

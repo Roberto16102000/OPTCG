@@ -1,6 +1,7 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { spacing } from '../constants/theme';
+import { useFilterLayout } from './filters/FilterLayoutContext';
 
 import {
 
@@ -38,7 +39,8 @@ export function CatalogFilters({ filters, onChange }: CatalogFiltersProps) {
 
   const { width } = useWindowDimensions();
 
-  const twoColumns = width >= 760;
+  const { stacked } = useFilterLayout();
+  const twoColumns = !stacked && width >= 760;
 
 
 

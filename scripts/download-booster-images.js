@@ -28,12 +28,22 @@ const PACKS = [
   'op09', 'op10', 'op11', 'op12', 'op13', 'op14', 'op15', 'op16',
   'eb01', 'eb02', 'eb03',
   'prb01', 'prb02',
+  'promo',
 ];
+
+/**
+ * Sobres cuya imagen no sigue el patrón de `/assets/Boosters/`. El de promos no
+ * es un booster de Bandai sino el Bonus Pack de los mazos de inicio.
+ */
+const OVERRIDES = {
+  PROMO: 'https://optcgrush.com/assets/STs/Bonus%20pack.png',
+};
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function downloadOne(packId, images) {
-  const fileName = `${packId}.webp`;
+  const catalogIdEarly = packId.toUpperCase();
+  const fileName = `${packId}.${OVERRIDES[catalogIdEarly] ? 'png' : 'webp'}`;
   const filePath = path.join(OUT_DIR, fileName);
   const webPath = `/booster-images/${fileName}`;
   const catalogId = packId.toUpperCase();
@@ -43,7 +53,8 @@ async function downloadOne(packId, images) {
     return { status: 'cached', bytes: fs.statSync(filePath).size };
   }
 
-  const res = await fetch(`${BASE_URL}/${fileName}`, {
+  const url = OVERRIDES[catalogId] ?? `${BASE_URL}/${fileName}`;
+  const res = await fetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://optcgrush.com/' },
   });
   if (!res.ok) return { status: `http ${res.status}`, bytes: 0 };
@@ -57,7 +68,12 @@ async function downloadOne(packId, images) {
 async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const images = {};
+  // Fusiona: el manifiesto también guarda los mazos, los perfiles de encuadre
+  // y los recortes medidos. Escribirlo entero se los llevaba por delante.
+  const manifest = fs.existsSync(MANIFEST_FILE)
+    ? JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf8'))
+    : {};
+  const images = manifest.images ?? {};
   let total = 0;
   let failed = 0;
 
@@ -75,7 +91,11 @@ async function main() {
 
   fs.writeFileSync(
     MANIFEST_FILE,
-    JSON.stringify({ syncedAt: new Date().toISOString(), source: BASE_URL, images }, null, 2)
+    JSON.stringify(
+      { ...manifest, syncedAt: new Date().toISOString(), source: BASE_URL, images },
+      null,
+      2
+    )
   );
 
   console.log(

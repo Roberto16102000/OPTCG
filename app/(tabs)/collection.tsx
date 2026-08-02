@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -7,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  ScrollView,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -17,7 +18,6 @@ import { CollectionGridToolbar } from '../../src/components/collection/Collectio
 import { CollectionHeader } from '../../src/components/collection/CollectionHeader';
 import { CollectionStatsPanel } from '../../src/components/collection/CollectionStatsPanel';
 import { CardDetailModal } from '../../src/components/CardDetailModal';
-import { SIDEBAR_COLLAPSED_WIDTH } from '../../src/components/SidebarNav';
 import { colors, spacing } from '../../src/constants/theme';
 import { useCollection } from '../../src/context/CollectionContext';
 import { useCollectionBounty } from '../../src/context/CollectionBountyContext';
@@ -48,7 +48,7 @@ const THREE_COLUMN_BREAKPOINT = 1100;
 export default function CollectionScreen() {
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
-  const layoutWidth = Math.max(320, windowWidth - SIDEBAR_COLLAPSED_WIDTH);
+  const layoutWidth = Math.max(320, windowWidth);
   const useThreeColumns = layoutWidth >= THREE_COLUMN_BREAKPOINT;
 
   const {
@@ -143,7 +143,7 @@ export default function CollectionScreen() {
     );
   }
 
-  const gridContent = (
+  const buildGrid = (header?: ReactNode, footer?: ReactNode) => (
     <View
       style={styles.centerPanel}
       onLayout={(e) => {
@@ -151,11 +151,6 @@ export default function CollectionScreen() {
         if (w > 0) setGridWidth(w);
       }}
     >
-      <CollectionGridToolbar
-        count={displayItems.length}
-        sort={sort}
-        onSortChange={setSort}
-      />
       <FlatList
         key={`collection-grid-${numColumns}`}
         data={displayItems}
@@ -165,6 +160,17 @@ export default function CollectionScreen() {
         contentContainerStyle={styles.gridContent}
         initialNumToRender={24}
         removeClippedSubviews={Platform.OS !== 'web'}
+        ListHeaderComponent={
+          <>
+            {header}
+            <CollectionGridToolbar
+              count={displayItems.length}
+              sort={sort}
+              onSortChange={setSort}
+            />
+          </>
+        }
+        ListFooterComponent={footer ? <>{footer}</> : null}
         renderItem={({ item, index }) => (
           <CollectionGridItem
             card={item.card}
@@ -223,7 +229,7 @@ export default function CollectionScreen() {
             activeFilterCount={activeFilterCount}
             onClearFilters={clearAllFilters}
           />
-          {gridContent}
+          {buildGrid()}
           <CollectionStatsPanel
             collectionList={collectionList}
             totalCopies={totalCards}
@@ -231,7 +237,7 @@ export default function CollectionScreen() {
           />
         </View>
       ) : (
-        <View style={styles.mobileLayout}>
+        buildGrid(
           <CollectionFiltersPanel
             search={search}
             onSearchChange={setSearch}
@@ -246,15 +252,14 @@ export default function CollectionScreen() {
             activeFilterCount={activeFilterCount}
             onClearFilters={clearAllFilters}
             compact
-          />
-          {gridContent}
+          />,
           <CollectionStatsPanel
             collectionList={collectionList}
             totalCopies={totalCards}
             priceByCardId={priceByCardId}
             compact
           />
-        </View>
+        )
       )}
 
       <CardDetailModal
@@ -309,6 +314,9 @@ const styles = StyleSheet.create({
   mobileLayout: {
     flex: 1,
     minHeight: 0,
+  },
+  mobileContent: {
+    paddingBottom: spacing.lg,
   },
   centerPanel: {
     flex: 1,

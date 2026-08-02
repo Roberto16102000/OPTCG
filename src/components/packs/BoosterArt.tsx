@@ -34,6 +34,9 @@ export function BoosterArt({ uri, height, crop, style }: BoosterArtProps) {
         contentFit="fill"
         cachePolicy="memory-disk"
         transition={120}
+        // Sin clave, expo-image recicla vistas y un sobre puede quedarse con el
+        // bitmap del anterior: se veía el arte del promo bajo el marco de EB-01.
+        recyclingKey={uri}
       />
     </View>
   );

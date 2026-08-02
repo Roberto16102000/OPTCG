@@ -114,7 +114,13 @@ export function CollectionFiltersPanel({
         ) : null}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        // Apilado en movil el panel no debe capturar el gesto: lo hace la
+        // pantalla entera, o quedan varias ventanitas que no dejan bajar.
+        scrollEnabled={!compact}
+      >
         <View style={styles.searchWrap}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
@@ -222,7 +228,6 @@ const styles = StyleSheet.create({
     borderRightWidth: 0,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    maxHeight: 360,
   },
   panelHeader: {
     flexDirection: 'row',
