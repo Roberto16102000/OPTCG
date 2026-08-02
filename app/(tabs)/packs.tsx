@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -15,15 +15,19 @@ import { usePackCollection } from '../../src/context/PackCollectionContext';
 import { useImageRegion } from '../../src/context/ImageRegionContext';
 import { useCatalogCards } from '../../src/hooks/useCatalogCards';
 import { usePackEnergy } from '../../src/hooks/usePackEnergy';
-import { formatCountdown, MAX_FREE_CHARGES } from '../../src/storage/packEnergy';
+import { CatalogPagination } from '../../src/components/CatalogPagination';
+import { getPageSlice, getTotalPages } from '../../src/utils/catalogGrid';
 import { PackCarousel } from '../../src/components/packs/PackCarousel';
 import { SetProgressRow } from '../../src/components/SetProgressRow';
 import { Panel, PirateButton, SectionHeading, StatBox } from '../../src/components/ui';
 import { hasBoosterArt } from '../../src/utils/boosterImages';
-import { buildPacks, buildPromoPack, rollPack, type PulledCard } from '../../src/utils/packs';
+import { buildPacks, buildPromoPack, PITY_THRESHOLD, rollPack, type PulledCard } from '../../src/utils/packs';
 import { getRarityBadgeColors, getRarityBadgeLabel } from '../../src/utils/rarity';
 
 const MULTI_OPEN = 5;
+
+/** Cartas por página en la lista de cartas posibles. */
+const POSSIBLE_PAGE_SIZE = 60;
 
 /**
  * Variedad mínima para que un sobre sirva de primera impresión. PRB-02 solo
@@ -42,16 +46,8 @@ export default function PacksScreen() {
     hasCard,
     loading: packLoading,
   } = usePackCollection();
-  const {
-    state: energy,
-    loading: energyLoading,
-    freeCharges,
-    extraTokens,
-    totalCharges,
-    secondsToNext,
-    spend,
-    recordOpening,
-  } = usePackEnergy();
+  // Se conserva solo el registro de aperturas: alimenta el contador de pity.
+  const { state: energy, loading: energyLoading, recordOpening } = usePackEnergy();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pulled, setPulled] = useState<PulledCard[] | null>(null);
@@ -90,11 +86,6 @@ export default function PacksScreen() {
   const open = useCallback(
     (packCount: number) => {
       if (!selected || !energy) return;
-      const result = spend(packCount);
-      if (!result.ok) {
-        setLastMessage('No te quedan sobres. Espera a que recarguen.');
-        return;
-      }
 
       const ownedIds = new Set(Object.keys(packCollection));
       let since = energy.packsSinceChase[selected.id] ?? 0;
@@ -115,7 +106,7 @@ export default function PacksScreen() {
       setOpenedLabel(selected.label);
       setPulled(all);
     },
-    [packCollection, energy, recordOpening, selected, spend]
+    [packCollection, energy, recordOpening, selected]
   );
 
   const commit = useCallback(async () => {
@@ -187,19 +178,14 @@ export default function PacksScreen() {
 
           <View style={styles.statsRow}>
             <StatBox
-              label="Paquetes diarios"
-              value={String(freeCharges)}
-              suffix={`/${MAX_FREE_CHARGES}`}
-              hint={
-                freeCharges >= MAX_FREE_CHARGES
-                  ? 'Al máximo'
-                  : `Recarga en ${formatCountdown(secondsToNext)}`
-              }
+              label="Sobres abiertos"
+              value={String(energy?.packsOpened[selected.id] ?? 0)}
+              hint="En este sobre"
             />
             <StatBox
-              label="Paquetes extra"
-              value={`x${extraTokens}`}
-              hint="No se recargan"
+              label="Sin chase"
+              value={String(energy?.packsSinceChase[selected.id] ?? 0)}
+              hint={`Garantizado a los ${PITY_THRESHOLD}`}
             />
             <StatBox
               label={`Tu colección ${selected.label}`}
@@ -216,18 +202,15 @@ export default function PacksScreen() {
               variant="gold"
               size="lg"
               onPress={() => open(1)}
-              disabled={totalCharges < 1}
               style={styles.openBtn}
             />
-            {totalCharges >= MULTI_OPEN ? (
-              <PirateButton
-                label={`Open ${MULTI_OPEN}`}
-                variant="primary"
-                size="lg"
-                onPress={() => open(MULTI_OPEN)}
-                style={styles.openBtn}
-              />
-            ) : null}
+            <PirateButton
+              label={`Open ${MULTI_OPEN}`}
+              variant="primary"
+              size="lg"
+              onPress={() => open(MULTI_OPEN)}
+              style={styles.openBtn}
+            />
           </View>
 
           <PirateButton
@@ -359,15 +342,39 @@ function PossibleCards({
 }) {
   const { getDisplayImageUri } = useImageRegion();
 
+  // Un sobre de una carta reparte de todo su fondo; los boosters, de su
+  // numeración base, que es su lista de comprobación.
+  const possible = pack.cardsPerPack === 1 ? pack.cards : pack.baseCards;
+
+  // El promo llega a 548 cartas y la rejilla no está virtualizada: se pagina.
+  const [page, setPage] = useState(1);
+  const totalPages = getTotalPages(possible.length, POSSIBLE_PAGE_SIZE);
+  const pageCards = useMemo(
+    () => getPageSlice(possible, page, POSSIBLE_PAGE_SIZE),
+    [possible, page]
+  );
+
+  // Al cambiar de sobre la página anterior podría no existir.
+  useEffect(() => {
+    setPage(1);
+  }, [pack.id]);
+
   return (
     <Panel style={styles.oddsPanel}>
       <SectionHeading
         title={`Cartas en ${pack.label}`}
-        meta={`${pack.baseCards.length} cartas`}
+        meta={`${possible.length} cartas`}
         style={styles.oddsHeading}
       />
+      {totalPages > 1 ? (
+        <CatalogPagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
+      ) : null}
       <View style={styles.oddsGrid}>
-        {pack.baseCards.map((card) => {
+        {pageCards.map((card) => {
           const owned = Boolean(ownedIds[card.id]);
           const uri = getDisplayImageUri(card);
           const rarityLabel = getRarityBadgeLabel(card.rarity);

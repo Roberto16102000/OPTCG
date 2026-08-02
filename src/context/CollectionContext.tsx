@@ -19,6 +19,7 @@ interface CollectionContextValue {
   addCard: (card: OnePieceCard) => Promise<void>;
   removeCard: (cardId: string) => Promise<void>;
   setQuantity: (cardId: string, quantity: number) => Promise<void>;
+  clearAll: () => Promise<void>;
   refresh: () => Promise<void>;
   loading: boolean;
 }
@@ -35,7 +36,11 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   useEffect(() => {
-    refresh().finally(() => setLoading(false));
+    // La limpieza corre antes de leer, para no cargar lo que se va a borrar.
+    collectionStorage
+      .runOneTimeCollectionReset()
+      .then(() => refresh())
+      .finally(() => setLoading(false));
   }, [refresh]);
 
   const addCard = useCallback(
@@ -45,6 +50,11 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
     },
     []
   );
+
+  const clearAll = useCallback(async () => {
+    await collectionStorage.clearCollection();
+    setCollection({});
+  }, []);
 
   const removeCard = useCallback(async (cardId: string) => {
     await collectionStorage.removeCardFromCollection(cardId);
@@ -88,6 +98,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       addCard,
       removeCard,
       setQuantity,
+      clearAll,
       refresh,
       loading,
     }),
@@ -98,6 +109,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       addCard,
       removeCard,
       setQuantity,
+      clearAll,
       refresh,
       loading,
     ]

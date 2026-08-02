@@ -34,6 +34,18 @@ App para explorar cartas de **One Piece TCG** y guardar tu colección personal.
 
    Descarga las 51 colecciones del sitio oficial (EN) y fusiona OP-16 desde el sitio japonés; guarda `assets/data/official-catalog.json`.
 
+   La web oficial deja fuera unas 440 cartas —promos de evento, exclusivos de
+   producto e ilustraciones alternativas—, y tampoco sirve sus imágenes. Para
+   añadirlas, desde el conjunto abierto de onepiece.gg:
+
+   ```bash
+   npm run merge:dotgg
+   ```
+
+   Las cartas así añadidas quedan marcadas con `source:dotgg` en `notes`, y sus
+   imágenes salen del CDN de ese sitio porque Bandai devuelve 404. Las cartas
+   DON!! se omiten salvo que pases `--with-don`.
+
 3. **Descarga las imágenes de carta** (1.6 GB, no van en el repo):
 
    ```bash
@@ -86,6 +98,7 @@ npx expo start --web --clear
 |---------|-------------|
 | `npm run sync:official` | Catálogo EN + fusión OP-16 (JP) |
 | `npm run merge:jp-packs` | Solo añade colecciones exclusivas JP (p. ej. OP-16) |
+| `npm run merge:dotgg` | Añade las ~440 cartas que Bandai no publica (`--with-don`, `--dry`) |
 | `npm run sync:images` | Imágenes de carta a `public/card-images/` (1.6 GB) |
 | `npm run sync:boosters` | Arte de los 21 sobres |
 | `npm run sync:decks` | Arte de los 36 mazos de inicio |

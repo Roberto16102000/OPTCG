@@ -22,10 +22,11 @@ import { isRareRarity } from '../../src/utils/rarity';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { collectionList, totalCards, loading: collectionLoading } = useCollection();
+  const { collectionList, totalCards, clearAll, loading: collectionLoading } = useCollection();
   const { bountyUsd } = useCollectionBounty();
   const { cards, loading: catalogLoading, refresh } = useCatalogCards();
   const [cacheSyncedAt, setCacheSyncedAt] = useState<string | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   const loadMeta = useCallback(async () => {
     const meta = await getCacheMeta();
@@ -106,6 +107,23 @@ export default function ProfileScreen() {
         </Text>
         <Text style={styles.metaLine}>App version: {appVersion}</Text>
       </Panel>
+
+      <PirateButton
+        label={
+          confirmingClear
+            ? `Confirmar: borrar ${collectionList.length} cartas`
+            : 'Vaciar mi colección'
+        }
+        variant={confirmingClear ? 'primary' : 'ghost'}
+        onPress={() => {
+          // Dos toques: vaciar no tiene deshacer.
+          if (!confirmingClear) {
+            setConfirmingClear(true);
+            return;
+          }
+          void clearAll().then(() => setConfirmingClear(false));
+        }}
+      />
 
       <PirateButton
         label="↻ Refresh catalog cache"

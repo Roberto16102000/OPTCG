@@ -267,7 +267,10 @@ export function rollPack(pack: PackDefinition, options: RollOptions = {}): RollR
   // El sobre de promos reparte una sola carta: no tiene slots comunes, solo
   // el sorteo del "hit" sobre todo su fondo.
   if (pack.cardsPerPack === 1) {
-    const card = pickRandom(basePool);
+    // Sortea sobre el fondo entero, variantes incluidas: un promo no tiene
+    // slots ni numeración base que respetar, y las 449 alternativas también
+    // forman parte de esas colecciones.
+    const card = pickRandom(pack.cards);
     return {
       cards: [
         {

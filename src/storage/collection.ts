@@ -55,6 +55,29 @@ export async function addCardToCollection(card: OnePieceCard): Promise<Collectio
   return entry;
 }
 
+/**
+ * Limpieza de un solo uso: vacía la colección física la primera vez que se
+ * abre la app en cada navegador. Existe porque hasta ahora el simulador
+ * escribía aquí, y quedaron cartas que no se tienen en papel.
+ *
+ * Se puede borrar este bloque —y su llamada en CollectionContext— en cuanto
+ * haya corrido en los navegadores que uses.
+ */
+const RESET_FLAG_KEY = '@onepiece/collection_reset_v1';
+
+export async function runOneTimeCollectionReset(): Promise<boolean> {
+  const done = await AsyncStorage.getItem(RESET_FLAG_KEY);
+  if (done) return false;
+  await AsyncStorage.removeItem(COLLECTION_KEY);
+  await AsyncStorage.setItem(RESET_FLAG_KEY, new Date().toISOString());
+  return true;
+}
+
+/** Vacía la colección física. No toca la del simulador ni la caché. */
+export async function clearCollection(): Promise<void> {
+  await AsyncStorage.removeItem(COLLECTION_KEY);
+}
+
 export async function removeCardFromCollection(cardId: string): Promise<void> {
   const collection = await loadCollection();
   delete collection[cardId];
