@@ -9,24 +9,36 @@ interface StatBoxProps {
   suffix?: string;
   hint?: string;
   progress?: number;
+  /** Versión reducida, para pantallas donde el dato no es lo principal. */
+  compact?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Celda de dato: rótulo pequeño, cifra grande en oro y pista o barra debajo. */
-export function StatBox({ label, value, suffix, hint, progress, style }: StatBoxProps) {
+export function StatBox({
+  label,
+  value,
+  suffix,
+  hint,
+  progress,
+  compact,
+  style,
+}: StatBoxProps) {
   return (
-    <View style={[styles.box, style]}>
-      <Text style={styles.label} numberOfLines={1}>
+    <View style={[styles.box, compact && styles.boxCompact, style]}>
+      <Text style={[styles.label, compact && styles.labelCompact]} numberOfLines={1}>
         {label}
       </Text>
-      <Text style={styles.value}>
+      <Text style={[styles.value, compact && styles.valueCompact]}>
         {value}
-        {suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}
+        {suffix ? (
+          <Text style={[styles.suffix, compact && styles.suffixCompact]}>{suffix}</Text>
+        ) : null}
       </Text>
       {progress !== undefined ? (
         <BountyBar progress={progress} style={styles.bar} />
       ) : hint ? (
-        <Text style={styles.hint} numberOfLines={1}>
+        <Text style={[styles.hint, compact && styles.hintCompact]} numberOfLines={1}>
           {hint}
         </Text>
       ) : null}
@@ -67,4 +79,13 @@ const styles = StyleSheet.create({
   bar: {
     marginTop: spacing.xs,
   },
+  boxCompact: {
+    minWidth: 96,
+    paddingVertical: spacing.xs + 1,
+    paddingHorizontal: spacing.sm,
+  },
+  labelCompact: { fontSize: 9, letterSpacing: 0.4 },
+  valueCompact: { fontSize: 16 },
+  suffixCompact: { fontSize: 11 },
+  hintCompact: { fontSize: 9 },
 });

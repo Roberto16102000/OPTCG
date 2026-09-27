@@ -9,6 +9,8 @@ interface PackCollectionValue {
   totalCopies: number;
   hasCard: (cardId: string) => boolean;
   addPackCard: (card: OnePieceCard) => Promise<void>;
+  /** Varias de golpe: una sola escritura para toda la tirada. */
+  addPackCards: (cards: OnePieceCard[]) => Promise<void>;
   clearAll: () => Promise<void>;
   loading: boolean;
 }
@@ -35,6 +37,12 @@ export function PackCollectionProvider({ children }: { children: React.ReactNode
     setPackCollection((prev) => ({ ...prev, [card.id]: entry }));
   }, []);
 
+  const addPackCards = useCallback(async (cards: OnePieceCard[]) => {
+    if (!cards.length) return;
+    const next = await packStorage.addCardsToPackCollection(cards);
+    setPackCollection(next);
+  }, []);
+
   const clearAll = useCallback(async () => {
     await packStorage.clearPackCollection();
     setPackCollection({});
@@ -48,8 +56,26 @@ export function PackCollectionProvider({ children }: { children: React.ReactNode
   const hasCard = useCallback((cardId: string) => Boolean(packCollection[cardId]), [packCollection]);
 
   const value = useMemo(
-    () => ({ packCollection, packList, totalCopies, hasCard, addPackCard, clearAll, loading }),
-    [packCollection, packList, totalCopies, hasCard, addPackCard, clearAll, loading]
+    () => ({
+      packCollection,
+      packList,
+      totalCopies,
+      hasCard,
+      addPackCard,
+      addPackCards,
+      clearAll,
+      loading,
+    }),
+    [
+      packCollection,
+      packList,
+      totalCopies,
+      hasCard,
+      addPackCard,
+      addPackCards,
+      clearAll,
+      loading,
+    ]
   );
 
   return (

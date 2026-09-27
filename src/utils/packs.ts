@@ -1,4 +1,5 @@
 import type { OnePieceCard } from '../types/card';
+import { PROMO_SET_NAME } from './cards';
 
 /** Un sobre abrible: una expansión con suficientes cartas para tirar 12. */
 export interface PackDefinition {
@@ -45,7 +46,11 @@ export const PROMO_PACK_ID = 'PROMO';
  * Sobre de promos y productos sueltos: las cartas que no pertenecen a ningún
  * booster ni mazo. Reparte una sola carta, como el Bonus Pack real.
  */
-const PROMO_SET_NAMES = ['Promotion card', 'Other Product Card'];
+/**
+ * Todas las colecciones sin código se cargan bajo este nombre al leer el
+ * catálogo, así que el sobre de promos tira de un solo grupo.
+ */
+const PROMO_SET_NAMES = [PROMO_SET_NAME];
 
 /** Nombre de colección sin el HTML escapado que trae el catálogo. */
 function plainSetName(card: OnePieceCard): string {

@@ -26,6 +26,15 @@ const CARD_ASPECT = 5 / 7;
 const REVEAL_IN_MS = 320;
 const REVEAL_OUT_MS = 260;
 
+/** Rarezas de relleno: van juntas en una tanda, no de una en una. */
+const BULK_RARITIES = new Set(['C', 'UC']);
+/**
+ * A partir de aquí se ofrece el atajo para saltarse el relleno. Con un sobre
+ * suelto son nueve y pasarlas una a una es parte de la gracia; con cinco
+ * sobres son más de cuarenta y conviene poder ir al grano.
+ */
+const BULK_THRESHOLD = 12;
+
 type Phase = 'sealed' | 'revealing' | 'summary';
 
 interface PackOpeningOverlayProps {
@@ -55,6 +64,27 @@ export function PackOpeningOverlay({
   // Con arte real el marco toma la proporción del sobre; sin él, la de una carta.
   const wrapperHeight = cardHeight;
   const wrapperWidth = boosterUri ? cardHeight * getArtAspect(packId) : cardWidth;
+
+  /**
+   * Se separa el relleno de las buenas conservando el orden de tirada: primero
+   * se ve el montón entero y luego se revelan las raras de una en una, que es
+   * donde está la emoción.
+   */
+  const { bulk, hits, split } = useMemo(() => {
+    // Una alternativa nunca es relleno aunque su rareza sea C o UC: 836 del
+    // catálogo lo son, y son justo el premio del sobre.
+    const esRelleno = (pulled: PulledCard) =>
+      BULK_RARITIES.has(pulled.card.rarity) && !pulled.isAltArt;
+    const comunes = cards.filter(esRelleno);
+    const buenas = cards.filter((pulled) => !esRelleno(pulled));
+    return { bulk: comunes, hits: buenas, split: comunes.length >= BULK_THRESHOLD };
+  }, [cards]);
+
+  /**
+   * Todas se revelan una a una; lo que cambia es el orden: primero el relleno
+   * y al final las buenas, para que la tirada termine hacia arriba.
+   */
+  const revealList = split ? [...bulk, ...hits] : cards;
 
   const enter = useRef(new Animated.Value(0)).current;
   const exit = useRef(new Animated.Value(0)).current;
@@ -95,6 +125,13 @@ export function PackOpeningOverlay({
     playEnter();
   }, [playEnter]);
 
+  /** Atajo: deja el relleno atrás y sigue por la primera de las buenas. */
+  const skipToHits = useCallback(() => {
+    anim.current = 'idle';
+    setIndex(bulk.length);
+    playEnter();
+  }, [bulk.length, playEnter]);
+
   const advance = useCallback(() => {
     // Tocar mientras la carta entra la asienta de golpe en vez de ignorar el toque.
     if (anim.current === 'in') {
@@ -106,7 +143,7 @@ export function PackOpeningOverlay({
     }
     if (anim.current === 'out') return;
 
-    if (index >= cards.length - 1) {
+    if (index >= revealList.length - 1) {
       setPhase('summary');
       return;
     }
@@ -121,10 +158,10 @@ export function PackOpeningOverlay({
       setIndex((prev) => prev + 1);
       playEnter();
     });
-  }, [cards.length, enter, exit, index, playEnter]);
+  }, [revealList.length, enter, exit, index, playEnter]);
 
-  const current = cards[index];
-  const remaining = cards.length - index - 1;
+  const current = revealList[index];
+  const remaining = revealList.length - index - 1;
   const newCount = cards.filter((pulled) => pulled.isNew).length;
   const dupeCount = cards.length - newCount;
 
@@ -193,10 +230,12 @@ export function PackOpeningOverlay({
 
   if (phase === 'revealing' && current) {
     const glow = getRarityGlowColor(current.card.rarity);
+    // El atajo solo tiene sentido mientras quede relleno por delante.
+    const enRelleno = split && hits.length > 0 && index < bulk.length;
     return (
       <View style={styles.backdrop}>
         <Text style={styles.counter}>
-          {index + 1} / {cards.length}
+          {index + 1} / {revealList.length}
         </Text>
         <Pressable
           onPress={advance}
@@ -212,13 +251,31 @@ export function PackOpeningOverlay({
             <PulledCardFace pulled={current} width={cardWidth} height={cardHeight} glow={glow} />
           </Animated.View>
         </Pressable>
-        <Pressable
-          onPress={() => setPhase('summary')}
-          style={styles.skipBtn}
-          accessibilityRole="button"
-        >
-          <Text style={styles.skipLabel}>Saltar</Text>
-        </Pressable>
+        <View style={styles.revealActions}>
+          {enRelleno ? (
+            <Pressable
+              onPress={skipToHits}
+              style={[styles.actionBtn, styles.jumpBtn]}
+              accessibilityRole="button"
+              accessibilityLabel={`Saltar las comunes y ver las ${hits.length} buenas`}
+            >
+              <Text style={[styles.actionLabel, styles.jumpLabel]}>
+                Saltar a las {hits.length} buenas
+              </Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={() => setPhase('summary')}
+            style={
+              enRelleno ? [styles.actionBtn, styles.skipBtnPaired] : styles.skipBtn
+            }
+            accessibilityRole="button"
+          >
+            <Text style={enRelleno ? [styles.actionLabel, styles.skipLabelPaired] : styles.skipLabel}>
+              Saltar todo
+            </Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -526,6 +583,46 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '800',
+  },
+  skipBtnPaired: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  skipLabelPaired: {
+    color: colors.text,
+  },
+  revealActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  /**
+   * Los dos botones comparten forma y alto: solo se distinguen por el color,
+   * que es lo que dice cuál es el atajo y cuál la salida.
+   */
+  actionBtn: {
+    minHeight: 44,
+    minWidth: 168,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  jumpBtn: {
+    borderColor: colors.borderGold,
+    backgroundColor: colors.surfaceRaised,
+  },
+  jumpLabel: {
+    color: colors.goldInk,
   },
   summaryPanel: {
     width: '92%',

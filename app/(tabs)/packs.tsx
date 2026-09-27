@@ -25,6 +25,8 @@ import { buildPacks, buildPromoPack, PITY_THRESHOLD, rollPack, type PulledCard }
 import { getRarityBadgeColors, getRarityBadgeLabel } from '../../src/utils/rarity';
 
 const MULTI_OPEN = 5;
+/** Tirada larga, para avanzar rápido en la colección de un sobre. */
+const BULK_OPEN = 25;
 
 /** Cartas por página en la lista de cartas posibles. */
 const POSSIBLE_PAGE_SIZE = 60;
@@ -40,7 +42,7 @@ export default function PacksScreen() {
   const { cards, loading: catalogLoading } = useCatalogCards();
   const {
     packCollection,
-    addPackCard,
+    addPackCards,
     packList,
     totalCopies,
     hasCard,
@@ -52,6 +54,16 @@ export default function PacksScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pulled, setPulled] = useState<PulledCard[] | null>(null);
   const [openedLabel, setOpenedLabel] = useState<string | null>(null);
+  /**
+   * Tirada hecha pero aún sin confirmar. El pity y el recuento de aperturas
+   * solo cuentan si las cartas acaban en la colección: registrarlos al tirar
+   * permitía quemar el pity cerrando la apertura sin quedarse nada.
+   */
+  const [pendingOpening, setPendingOpening] = useState<{
+    packId: string;
+    since: number;
+    packCount: number;
+  } | null>(null);
   const [showOdds, setShowOdds] = useState(false);
   const [lastMessage, setLastMessage] = useState<string | null>(null);
 
@@ -75,13 +87,21 @@ export default function PacksScreen() {
   }, [defaultIndex, packs, selectedId]);
   const selected = packs[selectedIndex] ?? null;
 
-  const ownedInPack = useMemo(() => {
-    if (!selected) return 0;
-    return selected.baseCards.reduce(
-      (count, card) => (packCollection[card.id] ? count + 1 : count),
-      0
-    );
-  }, [packCollection, selected]);
+  /**
+   * Fondo que cuenta para el progreso: el mismo del que reparte el sobre. El
+   * de promos sortea sobre todas sus cartas, variantes incluidas, así que
+   * medirlo solo con las base daba 3/135 mientras la fila de abajo iba por
+   * 31/836.
+   */
+  const poolCards = useMemo(() => {
+    if (!selected) return [];
+    return selected.subSets ? selected.cards : selected.baseCards;
+  }, [selected]);
+
+  const ownedInPack = useMemo(
+    () => poolCards.reduce((count, card) => (packCollection[card.id] ? count + 1 : count), 0),
+    [packCollection, poolCards]
+  );
 
   const open = useCallback(
     (packCount: number) => {
@@ -101,18 +121,24 @@ export default function PacksScreen() {
         }
       }
 
-      recordOpening(selected.id, since, packCount);
+      setPendingOpening({ packId: selected.id, since, packCount });
       setLastMessage(null);
       setOpenedLabel(selected.label);
       setPulled(all);
     },
-    [packCollection, energy, recordOpening, selected]
+    [packCollection, energy, selected]
   );
 
   const commit = useCallback(async () => {
     if (!pulled) return;
-    for (const pull of pulled) {
-      await addPackCard(pull.card);
+    // De una sola escritura: con 25 sobres son 300 cartas y guardarlas una a
+    // una dejaba la pantalla colgada.
+    await addPackCards(pulled.map((pull) => pull.card));
+    // Ahora sí: las cartas están guardadas, así que el pity y el contador de
+    // aperturas pueden avanzar.
+    if (pendingOpening) {
+      recordOpening(pendingOpening.packId, pendingOpening.since, pendingOpening.packCount);
+      setPendingOpening(null);
     }
     const newCount = pulled.filter((pull) => pull.isNew).length;
     const dupeCount = pulled.length - newCount;
@@ -126,7 +152,13 @@ export default function PacksScreen() {
         ? `+${newCount} carta${newCount === 1 ? '' : 's'} nueva${newCount === 1 ? '' : 's'}${dupePart}${where}`
         : `Sin cartas nuevas${where} · ${dupeCount} repetida${dupeCount === 1 ? '' : 's'}`
     );
-  }, [addPackCard, openedLabel, pulled]);
+  }, [addPackCards, openedLabel, pendingOpening, pulled, recordOpening]);
+
+  /** Cerrar sin quedarse las cartas: la tirada se descarta entera. */
+  const discard = useCallback(() => {
+    setPulled(null);
+    setPendingOpening(null);
+  }, []);
 
   if (catalogLoading || energyLoading) {
     return (
@@ -147,13 +179,11 @@ export default function PacksScreen() {
     );
   }
 
-  const progress = selected.baseCards.length
-    ? ownedInPack / selected.baseCards.length
-    : 0;
+  const progress = poolCards.length ? ownedInPack / poolCards.length : 0;
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.heading}>Pack Simulator</Text>
 
         <View style={styles.stage}>
@@ -171,26 +201,33 @@ export default function PacksScreen() {
         </View>
 
         <Panel crowned style={styles.hero}>
-          <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeText}>{selected.label}</Text>
+          <View style={styles.heroTitle}>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>{selected.label}</Text>
+            </View>
+            <Text style={styles.heroName} numberOfLines={2}>
+              {selected.name}
+            </Text>
           </View>
-          <Text style={styles.heroName}>{selected.name}</Text>
 
           <View style={styles.statsRow}>
             <StatBox
+              compact
               label="Sobres abiertos"
               value={String(energy?.packsOpened[selected.id] ?? 0)}
               hint="En este sobre"
             />
             <StatBox
+              compact
               label="Sin chase"
               value={String(energy?.packsSinceChase[selected.id] ?? 0)}
               hint={`Garantizado a los ${PITY_THRESHOLD}`}
             />
             <StatBox
+              compact
               label={`Tu colección ${selected.label}`}
               value={String(ownedInPack)}
-              suffix={`/${selected.baseCards.length}`}
+              suffix={`/${poolCards.length}`}
               progress={progress}
               style={styles.statBoxWide}
             />
@@ -200,15 +237,19 @@ export default function PacksScreen() {
             <PirateButton
               label="Open 1"
               variant="gold"
-              size="lg"
               onPress={() => open(1)}
               style={styles.openBtn}
             />
             <PirateButton
               label={`Open ${MULTI_OPEN}`}
               variant="primary"
-              size="lg"
               onPress={() => open(MULTI_OPEN)}
+              style={styles.openBtn}
+            />
+            <PirateButton
+              label={`Open ${BULK_OPEN}`}
+              variant="primary"
+              onPress={() => open(BULK_OPEN)}
               style={styles.openBtn}
             />
           </View>
@@ -242,7 +283,7 @@ export default function PacksScreen() {
           packLabel={selected.label}
           packName={selected.name}
           onCommit={commit}
-          onDismiss={() => setPulled(null)}
+          onDismiss={discard}
         />
       ) : null}
     </View>
@@ -443,7 +484,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     color: colors.goldInk,
-    fontSize: 26,
+    fontSize: 19,
     fontWeight: '900',
   },
   hero: {
@@ -451,34 +492,42 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.lg,
-    gap: spacing.md,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   stage: {
     borderRadius: radii.lg,
     backgroundColor: colors.gridPanel,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     overflow: 'hidden',
+  },
+  /** Sello y nombre en la misma línea: antes se comían dos. */
+  heroTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
   },
   heroBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceRaised,
   },
   heroBadgeText: {
     color: colors.goldInk,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
   },
   heroName: {
     color: colors.text,
-    fontSize: 30,
+    fontSize: 17,
     fontWeight: '900',
+    flexShrink: 1,
   },
   statsRow: {
     flexDirection: 'row',
@@ -486,7 +535,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   statBoxWide: {
-    minWidth: 220,
+    minWidth: 170,
     flexGrow: 2,
   },
   actions: {
@@ -496,13 +545,13 @@ const styles = StyleSheet.create({
   },
   openBtn: {
     flex: 1,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: radii.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
   },
   oddsBtn: {
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.xs + 2,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,
@@ -510,7 +559,7 @@ const styles = StyleSheet.create({
   },
   message: {
     color: colors.success,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -519,7 +568,7 @@ const styles = StyleSheet.create({
   },
   packCollectionHint: {
     color: colors.textMuted,
-    fontSize: 12,
+    fontSize: 11,
     marginBottom: spacing.sm,
   },
   oddsHeading: {

@@ -3,12 +3,14 @@ import { getArtCrop, getBoosterImageUri } from '../../utils/boosterImages';
 import type { PackDefinition } from '../../utils/packs';
 import { BoosterArt } from './BoosterArt';
 
-const CENTER_HEIGHT = 260;
-const SIDE_HEIGHT = 190;
+const CENTER_HEIGHT = 380;
+const SIDE_HEIGHT = 236;
 /** Ancho al que el carrusel se ve a tamaño completo. */
 const FULL_WIDTH = 520;
+/** Alto de ventana necesario para el sobre completo; en cortas se encoge. */
+const FULL_HEIGHT = 840;
 /** Cuánto se solapan los sobres laterales con el central, a escala 1. */
-const OVERLAP = 44;
+const OVERLAP = 58;
 
 interface PackCarouselProps {
   packs: PackDefinition[];
@@ -25,8 +27,10 @@ interface PackCarouselProps {
  * navegación.
  */
 export function PackCarousel({ packs, index, onSelect }: PackCarouselProps) {
-  const { width } = useWindowDimensions();
-  const scale = Math.max(0.58, Math.min(1, width / FULL_WIDTH));
+  const { width, height } = useWindowDimensions();
+  // También manda el alto: el sobre es lo primero que se ve y no debe empujar
+  // los botones fuera de pantalla en ventanas bajas.
+  const scale = Math.max(0.58, Math.min(1, width / FULL_WIDTH, height / FULL_HEIGHT));
 
   if (!packs.length) return null;
 
@@ -41,7 +45,7 @@ export function PackCarousel({ packs, index, onSelect }: PackCarouselProps) {
   const showSides = packs.length > 1;
 
   return (
-    <View style={[styles.stage, { height: centerHeight + 24 }]}>
+    <View style={[styles.stage, { height: centerHeight + 16 }]}>
       {showSides ? (
         <Side
           pack={prev}
@@ -113,7 +117,8 @@ const styles = StyleSheet.create({
   },
   side: {
     zIndex: 1,
-    opacity: 0.55,
+    // Más apagados que antes: el protagonista es el sobre central.
+    opacity: 0.45,
   },
   sidePressed: {
     opacity: 0.85,

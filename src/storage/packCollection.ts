@@ -32,6 +32,28 @@ export async function addCardToPackCollection(card: OnePieceCard): Promise<Colle
   return entry;
 }
 
+/**
+ * Añade varias de una vez: una lectura y una escritura para todas. Guardarlas
+ * de una en una hacía 25 sobres = 300 lecturas y 300 escrituras de la
+ * colección entera, y la pantalla se quedaba colgada al confirmar.
+ */
+export async function addCardsToPackCollection(
+  cards: OnePieceCard[]
+): Promise<Record<string, CollectionEntry>> {
+  const collection = await loadPackCollection();
+  const now = new Date().toISOString();
+
+  for (const card of cards) {
+    const existing = collection[card.id];
+    collection[card.id] = existing
+      ? { ...existing, quantity: existing.quantity + 1 }
+      : { card, quantity: 1, addedAt: now };
+  }
+
+  await savePackCollection(collection);
+  return collection;
+}
+
 export async function clearPackCollection(): Promise<void> {
   await AsyncStorage.removeItem(PACK_COLLECTION_KEY);
 }
