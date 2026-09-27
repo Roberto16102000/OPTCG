@@ -4,18 +4,23 @@
  * en su cardlist.
  *
  * Uso:
- *   npm run merge:tcgplayer -- --dry
- *   npm run merge:tcgplayer
+ *   npm run merge:tcgplayer                    informa de lo que falta, no escribe
+ *   npm run merge:tcgplayer -- --with-presale  ademas las anade
+ *
+ * Por defecto NO escribe. Hoy todo lo que TCGplayer tiene y las demas fuentes
+ * no son expansiones sin salir: sin arte -su CDN devuelve 403- y con nombre y
+ * rareza provisionales hasta el dia de salida. Se informan, que para eso sirve
+ * la comparacion, pero entran solo si se piden a proposito.
  *
  * Solo se añaden códigos que no tenemos en absoluto. TCGplayer publica como
  * producto aparte cada estampado -Pre-Release, Release, premios de torneo- de
  * una carta que ya existe, porque tienen precio distinto: son unas 1.500 y no
  * son arte nuevo, así que quedan fuera por construcción.
  *
- * Estas cartas llegan SIN IMAGEN: el CDN devuelve 403 mientras el set está en
- * preventa. Van marcadas con `presale` para poder distinguirlas y quitarlas,
- * y la propia ficha de TCGplayer avisa de que nombre y rareza pueden cambiar
- * hasta la fecha de salida.
+ * Si se piden con `--with-presale`, llegan SIN IMAGEN -el CDN devuelve 403
+ * mientras el set está en preventa- y van marcadas con `presale`: eso las
+ * distingue para quitarlas de una pasada y las deja fuera de los sobres, que
+ * no se puede abrir un set que aún no existe.
  */
 import fs from 'fs';
 import path from 'path';
@@ -33,7 +38,9 @@ const UA = {
 const SIZE = 50;
 const DELAY_MS = Number(process.env.TCG_DELAY_MS || 250);
 
-const DRY_RUN = process.argv.includes('--dry');
+const WITH_PRESALE = process.argv.includes('--with-presale');
+/** Sin `--with-presale` esto es solo una comparacion. */
+const DRY_RUN = process.argv.includes('--dry') || !WITH_PRESALE;
 
 /** Forma de un código de carta: `OP18-022`, `EB05-036`, `P-110`. */
 const CODE_RE = /^[A-Z]{1,4}\d{0,2}-\d{1,4}$/;
@@ -160,7 +167,13 @@ async function main() {
   }
 
   if (DRY_RUN) {
-    console.log('\n--dry: no se ha escrito nada');
+    console.log('');
+    console.log(
+      added.length
+        ? 'No se ha escrito nada. Son cartas en preventa, sin arte y con datos' +
+            ' provisionales; para anadirlas de todos modos: --with-presale'
+        : 'No se ha escrito nada.'
+    );
     return;
   }
   if (!added.length) {
