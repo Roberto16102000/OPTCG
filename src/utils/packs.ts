@@ -31,9 +31,23 @@ export interface PulledCard {
   isNew: boolean;
   /** true si es un art alternativo (id !== code). */
   isAltArt: boolean;
+  /** true si es una tirada premium; merece su propia insignia. */
+  isPremium: boolean;
 }
 
-export type PullTier = 'base' | 'mid' | 'high' | 'chase';
+export type PullTier = 'base' | 'mid' | 'high' | 'chase' | 'premium';
+
+/**
+ * Tirada premium: artes alternativos que no salen del sobre normal -coleccion
+ * premium, premio de torneo, pack de evento-. Vienen marcados desde el
+ * catalogo y no se deducen de la rareza, porque comparten rareza con su carta
+ * base y no habria forma de distinguirlos.
+ */
+export const PREMIUM_NOTE = 'premium';
+
+export function isPremiumCard(card: OnePieceCard): boolean {
+  return Boolean(card.notes?.includes(PREMIUM_NOTE));
+}
 
 const BOOSTER_PREFIX = /^(OP|EB|PRB)\d+$/;
 const MIN_CARDS_FOR_BOOSTER = 12;
@@ -206,6 +220,7 @@ interface HitOutcome {
   tier: PullTier;
   weight: number;
   altArt?: boolean;
+  premium?: boolean;
 }
 
 /** Slot 12: el "hit". Pesos aproximados a las tasas reales de Bandai. */
@@ -216,10 +231,14 @@ const HIT_TABLE: HitOutcome[] = [
   { rarities: ['SEC'], tier: 'chase', weight: 5 },
   { rarities: ['SP CARD', 'TR'], tier: 'chase', weight: 4 },
   { rarities: [], tier: 'chase', weight: 2, altArt: true },
+  // Peso bajo a proposito: son la carta mas dificil del sobre.
+  { rarities: [], tier: 'premium', weight: 1, premium: true },
 ];
 
 /** Resultados que cuentan como chase para el contador de pity. */
-const PITY_OUTCOMES = HIT_TABLE.filter((outcome) => outcome.tier === 'chase');
+const PITY_OUTCOMES = HIT_TABLE.filter(
+  (outcome) => outcome.tier === 'chase' || outcome.tier === 'premium'
+);
 
 function pickRandom<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
@@ -268,6 +287,10 @@ export function rollPack(pack: PackDefinition, options: RollOptions = {}): RollR
   const { packsSinceChase = 0, ownedIds } = options;
   const basePool = pack.baseCards;
   const altArtPool = pack.cards.filter((card) => card.id !== card.code);
+  // Las premium salen del pool de alternativas, asi que se apartan para que no
+  // caigan tambien por el slot de alternativa normal: cada una tiene su tirada.
+  const premiumPool = altArtPool.filter(isPremiumCard);
+  const plainAltPool = altArtPool.filter((card) => !isPremiumCard(card));
 
   // El sobre de promos reparte una sola carta: no tiene slots comunes, solo
   // el sorteo del "hit" sobre todo su fondo.
@@ -283,6 +306,7 @@ export function rollPack(pack: PackDefinition, options: RollOptions = {}): RollR
           tier: card.rarity === 'P' ? 'high' : 'mid',
           isNew: !ownedIds?.has(card.id),
           isAltArt: card.id !== card.code,
+          isPremium: isPremiumCard(card),
         },
       ],
       packsSinceChase: packsSinceChase + 1,
@@ -305,6 +329,7 @@ export function rollPack(pack: PackDefinition, options: RollOptions = {}): RollR
       tier,
       isNew: !ownedIds?.has(card.id),
       isAltArt: card.id !== card.code,
+      isPremium: isPremiumCard(card),
     });
   };
 
@@ -329,8 +354,8 @@ export function rollPack(pack: PackDefinition, options: RollOptions = {}): RollR
     const outcome = pickWeighted(remaining);
     remaining.splice(remaining.indexOf(outcome), 1);
 
-    if (outcome.altArt) {
-      const available = altArtPool.filter((card) => !usedIds.has(card.id));
+    if (outcome.premium) {
+      const available = premiumPool.filter((card) => !usedIds.has(card.id));
       if (available.length) {
         const card = pickRandom(available);
         hit = {
@@ -338,6 +363,22 @@ export function rollPack(pack: PackDefinition, options: RollOptions = {}): RollR
           tier: outcome.tier,
           isNew: !ownedIds?.has(card.id),
           isAltArt: true,
+          isPremium: true,
+        };
+      }
+      continue;
+    }
+
+    if (outcome.altArt) {
+      const available = plainAltPool.filter((card) => !usedIds.has(card.id));
+      if (available.length) {
+        const card = pickRandom(available);
+        hit = {
+          card,
+          tier: outcome.tier,
+          isNew: !ownedIds?.has(card.id),
+          isAltArt: true,
+          isPremium: isPremiumCard(card),
         };
       }
       continue;
@@ -351,6 +392,7 @@ export function rollPack(pack: PackDefinition, options: RollOptions = {}): RollR
         tier: outcome.tier,
         isNew: !ownedIds?.has(card.id),
         isAltArt: card.id !== card.code,
+        isPremium: isPremiumCard(card),
       };
     }
   }
@@ -362,6 +404,7 @@ export function rollPack(pack: PackDefinition, options: RollOptions = {}): RollR
 
   return {
     cards: pulled,
-    packsSinceChase: hit?.tier === 'chase' ? 0 : packsSinceChase + 1,
+    packsSinceChase:
+      hit?.tier === 'chase' || hit?.tier === 'premium' ? 0 : packsSinceChase + 1,
   };
 }

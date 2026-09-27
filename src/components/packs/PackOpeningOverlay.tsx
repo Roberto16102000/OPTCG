@@ -383,7 +383,13 @@ function PulledCardFace({ pulled, width, height, glow, compact }: PulledCardFace
           </Text>
         </View>
       ) : null}
-      {pulled.isAltArt ? (
+      {/* PREMIUM manda sobre ALT: una premium ya es alternativa, y dos
+          insignias en la misma esquina se pisarian. */}
+      {pulled.isPremium ? (
+        <View style={[styles.altBadge, styles.premiumBadge, compact && styles.altBadgeCompact]}>
+          <Text style={styles.altBadgeText}>PREMIUM</Text>
+        </View>
+      ) : pulled.isAltArt ? (
         <View style={[styles.altBadge, compact && styles.altBadgeCompact]}>
           <Text style={styles.altBadgeText}>ALT</Text>
         </View>
@@ -559,6 +565,9 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radii.sm,
     backgroundColor: colors.raritySec,
+  },
+  premiumBadge: {
+    backgroundColor: colors.goldInk,
   },
   altBadgeCompact: {
     bottom: 4,
