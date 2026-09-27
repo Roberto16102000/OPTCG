@@ -36,6 +36,7 @@
     "sync:boosters": "node scripts/download-booster-images.js",
     "sync:decks": "node scripts/download-deck-images.js",
     "merge:dotgg": "node scripts/merge-dotgg-catalog.js",
+    "merge:limitless": "node scripts/merge-limitless-catalog.js",
     "merge:jp-packs": "node scripts/merge-jp-only-packs.js",
     "enrich:en-names": "node scripts/enrich-english-names.js",
     "enrich:illustrations": "node scripts/enrich-illustrations.js",
