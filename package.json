@@ -24,6 +24,7 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "cheerio": "^1.2.0",
+    "playwright": "^1.63.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -44,6 +45,7 @@
     "tcgplayer:prices": "node scripts/tcgplayer-proxy-server.js",
     "art:whiten": "node scripts/whiten-deck-art.js",
     "check:responsive": "node scripts/check-responsive.mjs",
+    "check:visual": "node scripts/check-responsive-visual.mjs",
     "build:pwa": "node scripts/build-pwa.js"
   },
   "type": "module",

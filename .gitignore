@@ -50,3 +50,6 @@ public/card-images/
 
 # Imágenes apartadas durante build:pwa
 .pwa-build/
+
+# Capturas de check:visual
+.responsive-shots/
