@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radii, spacing, typography } from '../../constants/theme';
 import {
+  ART_FILTER_OPTIONS,
   COLOR_FILTER_OPTIONS,
   OWNED_FILTER_OPTIONS,
   RARITY_FILTER_OPTIONS,
@@ -188,6 +189,22 @@ export function CollectionFiltersPanel({
                 active={filters.rarity === opt.id}
                 disabled={opt.id !== 'all' && count === 0}
                 onPress={() => onFiltersChange({ rarity: opt.id as ChipFilterValue })}
+              />
+            );
+          })}
+        </FilterSection>
+
+        <FilterSection label="Arte">
+          {ART_FILTER_OPTIONS.map((opt) => {
+            const count = filterCounts.art[opt.id] ?? 0;
+            return (
+              <FilterChip
+                key={opt.id}
+                label={opt.label}
+                count={count}
+                active={filters.art === opt.id}
+                disabled={opt.id !== 'all' && count === 0}
+                onPress={() => onFiltersChange({ art: opt.id as ChipFilterValue })}
               />
             );
           })}

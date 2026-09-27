@@ -7,6 +7,7 @@ import {
 
   COLOR_FILTER_OPTIONS,
 
+  ART_FILTER_OPTIONS,
   ILLUSTRATION_FILTER_OPTIONS,
 
   OWNED_FILTER_OPTIONS,
@@ -85,6 +86,20 @@ export function CatalogFilters({ filters, onChange }: CatalogFiltersProps) {
         value={filters.illustration}
 
         onChange={(illustration) => onChange({ illustration })}
+
+        compact
+
+      />
+
+      <FilterChipRow
+
+        label="Arte"
+
+        options={ART_FILTER_OPTIONS}
+
+        value={filters.art}
+
+        onChange={(art) => onChange({ art })}
 
         compact
 

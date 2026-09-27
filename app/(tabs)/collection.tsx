@@ -38,6 +38,7 @@ const DEFAULT_FILTERS: CatalogFiltersState = {
   color: 'all',
   cardType: 'all',
   illustration: 'all',
+  art: 'all',
   rarity: 'all',
   family: 'all',
   owned: 'all',

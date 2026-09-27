@@ -1,5 +1,4 @@
 import type { OnePieceCard } from '../types/card';
-import { getCardSetName } from './cards';
 
 export type ChipFilterValue = string; // 'all' o valor concreto
 
@@ -35,6 +34,13 @@ export const RARITY_FILTER_OPTIONS = [
   { id: 'P', label: 'P' },
 ] as const;
 
+/** Una carta es ALT cuando su id lleva sufijo de variante (`OP09-007_p1`). */
+export const ART_FILTER_OPTIONS = [
+  { id: 'all', label: 'ALL' },
+  { id: 'base', label: 'Base' },
+  { id: 'alt', label: 'ALT' },
+] as const;
+
 export const OWNED_FILTER_OPTIONS = [
   { id: 'all', label: 'All cards' },
   { id: 'owned', label: 'Owned' },
@@ -48,6 +54,15 @@ export const ILLUSTRATION_FILTER_OPTIONS = [
   { id: 'Original Illustrations', label: 'Original Illustrations' },
   { id: 'Other', label: 'Other' },
 ] as const;
+
+export function isAltArtCard(card: OnePieceCard): boolean {
+  return Boolean(card.code) && card.id !== card.code;
+}
+
+function cardMatchesArt(card: OnePieceCard, value: ChipFilterValue): boolean {
+  if (value === 'all') return true;
+  return value === 'alt' ? isAltArtCard(card) : !isAltArtCard(card);
+}
 
 function normalizeCardType(type: string): string {
   const t = type.trim().toUpperCase();
@@ -119,18 +134,21 @@ export function buildFamilyCounts(cards: OnePieceCard[]): Record<string, number>
   return counts;
 }
 
-/** Multi-word search across name, code, family, set, color. */
+/**
+ * Búsqueda por varias palabras sobre la identidad de la carta: nombre, código,
+ * traits y color.
+ *
+ * El nombre de la colección queda fuera a propósito. Seis mazos se llaman como
+ * su líder —`RED Monkey.D.Luffy [ST-31]`, `Monkey D. Luffy [ST-08]`…—, así que
+ * buscar "luffy" devolvía además las 78 cartas de esos mazos: Nami, Marco,
+ * Uso-Hachi y compañía, que no tienen nada que ver. Para buscar por colección
+ * está el selector de sets, que además acierta siempre.
+ */
 export function cardMatchesSearch(card: OnePieceCard, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   const terms = q.split(/\s+/).filter(Boolean);
-  const hay = [
-    card.name,
-    card.code,
-    card.family,
-    getCardSetName(card),
-    card.color,
-  ]
+  const hay = [card.name, card.code, card.family, card.color]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
@@ -145,6 +163,8 @@ export interface CatalogFiltersState {
   illustration: ChipFilterValue;
   rarity: ChipFilterValue;
   family: ChipFilterValue;
+  /** Ilustración base o alternativa. */
+  art: ChipFilterValue;
   owned: OwnedFilterValue;
 }
 
@@ -158,6 +178,7 @@ export function applyCatalogFilters(
       cardMatchesType(c, filters.cardType) &&
       cardMatchesIllustration(c, filters.illustration) &&
       cardMatchesRarity(c, filters.rarity) &&
-      cardMatchesFamily(c, filters.family)
+      cardMatchesFamily(c, filters.family) &&
+      cardMatchesArt(c, filters.art)
   );
 }

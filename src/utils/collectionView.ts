@@ -7,6 +7,7 @@ import {
   cardMatchesRarity,
   cardMatchesSearch,
   cardMatchesType,
+  isAltArtCard,
   COLOR_FILTER_OPTIONS,
   RARITY_FILTER_OPTIONS,
   TYPE_FILTER_OPTIONS,
@@ -126,6 +127,7 @@ export interface CollectionFilterCounts {
   type: Record<string, number>;
   rarity: Record<string, number>;
   color: Record<string, number>;
+  art: Record<string, number>;
 }
 
 export function getCollectionFilterCounts(
@@ -139,22 +141,36 @@ export function getCollectionFilterCounts(
     cardMatchesSearch(c, search)
   );
 
+  const matchesArt = (c: OnePieceCard) =>
+    filters.art === 'all' ||
+    (filters.art === 'alt' ? isAltArtCard(c) : !isAltArtCard(c));
+
   const baseForType = pool.filter(
     (c) =>
       cardMatchesRarity(c, filters.rarity) &&
       cardMatchesColor(c, filters.color) &&
-      cardMatchesFamily(c, filters.family)
+      cardMatchesFamily(c, filters.family) &&
+      matchesArt(c)
   );
   const baseForRarity = pool.filter(
     (c) =>
       cardMatchesType(c, filters.cardType) &&
       cardMatchesColor(c, filters.color) &&
-      cardMatchesFamily(c, filters.family)
+      cardMatchesFamily(c, filters.family) &&
+      matchesArt(c)
   );
   const baseForColor = pool.filter(
     (c) =>
       cardMatchesType(c, filters.cardType) &&
       cardMatchesRarity(c, filters.rarity) &&
+      cardMatchesFamily(c, filters.family) &&
+      matchesArt(c)
+  );
+  const baseForArt = pool.filter(
+    (c) =>
+      cardMatchesType(c, filters.cardType) &&
+      cardMatchesRarity(c, filters.rarity) &&
+      cardMatchesColor(c, filters.color) &&
       cardMatchesFamily(c, filters.family)
   );
 
@@ -170,13 +186,19 @@ export function getCollectionFilterCounts(
     rarity[opt.id] = baseForRarity.filter((c) => cardMatchesRarity(c, opt.id)).length;
   }
 
+  const art: Record<string, number> = {
+    all: baseForArt.length,
+    alt: baseForArt.filter(isAltArtCard).length,
+    base: baseForArt.filter((c) => !isAltArtCard(c)).length,
+  };
+
   const color: Record<string, number> = { all: baseForColor.length };
   for (const opt of COLOR_FILTER_OPTIONS) {
     if (opt.id === 'all') continue;
     color[opt.id] = baseForColor.filter((c) => cardMatchesColor(c, opt.id)).length;
   }
 
-  return { type, rarity, color };
+  return { type, rarity, color, art };
 }
 
 export function countCollectionActiveFilters(
@@ -192,6 +214,7 @@ export function countCollectionActiveFilters(
   if (filters.rarity !== 'all') count++;
   if (filters.color !== 'all') count++;
   if (filters.family !== 'all') count++;
+  if (filters.art !== 'all') count++;
   return count;
 }
 

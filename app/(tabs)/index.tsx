@@ -98,7 +98,12 @@ import {
 
 } from '../../src/utils/catalogGrid';
 
-import { extractUniqueSets, getCardSetName, sortCards } from '../../src/utils/cards';
+import {
+  extractUniqueSets,
+  getCardSetName,
+  sortCards,
+  unifySetNames,
+} from '../../src/utils/cards';
 
 import { CATALOG_THUMB, prefetchImageUris } from '../../src/utils/imageLoading';
 
@@ -111,6 +116,7 @@ const DEFAULT_FILTERS: CatalogFiltersState = {
   color: 'all',
   cardType: 'all',
   illustration: 'all',
+  art: 'all',
   rarity: 'all',
   family: 'all',
   owned: 'all',
@@ -190,7 +196,7 @@ export default function CatalogScreen() {
 
     if (cached?.length) {
 
-      setCards(sortCards(cached));
+      setCards(sortCards(unifySetNames(cached)));
 
     }
 
@@ -397,6 +403,7 @@ export default function CatalogScreen() {
     catalogFilters.illustration !== 'all' ||
     catalogFilters.rarity !== 'all' ||
     catalogFilters.family !== 'all' ||
+    catalogFilters.art !== 'all' ||
     catalogFilters.owned !== 'all';
 
   const activeFilterCount = useMemo(() => {
@@ -406,6 +413,7 @@ export default function CatalogScreen() {
     if (catalogFilters.illustration !== 'all') count += 1;
     if (catalogFilters.rarity !== 'all') count += 1;
     if (catalogFilters.family !== 'all') count += 1;
+    if (catalogFilters.art !== 'all') count += 1;
     if (catalogFilters.owned !== 'all') count += 1;
     if (selectedSet) count += 1;
     return count;
