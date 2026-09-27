@@ -29,6 +29,12 @@ const REVEAL_OUT_MS = 260;
 /** Rarezas de relleno: van juntas en una tanda, no de una en una. */
 const BULK_RARITIES = new Set(['C', 'UC']);
 
+/** Grados que se inclina la carta al llevarla al borde. */
+const TILT_MAX = 16;
+
+/** Movimiento a partir del cual el gesto es girar la carta, no pasarla. */
+const TILT_DRAG_PX = 8;
+
 /** Duración de una pasada del destello. */
 const SHINE_MS = 1500;
 
@@ -111,6 +117,13 @@ export function PackOpeningOverlay({
   const exit = useRef(new Animated.Value(0)).current;
   const sweep = useRef(new Animated.Value(0)).current;
   const shine = useRef(new Animated.Value(0)).current;
+  /** Inclinacion de la carta: -1..1 segun donde este el puntero sobre ella. */
+  const tiltX = useRef(new Animated.Value(0)).current;
+  const tiltY = useRef(new Animated.Value(0)).current;
+  /** Si el puntero se ha movido lo bastante, el gesto era girar y no pasar. */
+  const giro = useRef(false);
+  /** Punto donde empezo el gesto, para medir cuanto se ha arrastrado. */
+  const arranqueGiro = useRef<{ x: number; y: number } | null>(null);
   // Se consulta dentro de callbacks de animación, donde el estado sería obsoleto.
   const anim = useRef<'idle' | 'in' | 'out'>('idle');
 
@@ -127,6 +140,14 @@ export function PackOpeningOverlay({
     loop.start();
     return () => loop.stop();
   }, [phase, sweep]);
+
+  // Cada carta empieza plana: si no, hereda el giro de la anterior.
+  useEffect(() => {
+    tiltX.setValue(0);
+    tiltY.setValue(0);
+    giro.current = false;
+    arranqueGiro.current = null;
+  }, [index, tiltX, tiltY]);
 
   const playEnter = useCallback(() => {
     enter.setValue(0);
@@ -210,6 +231,38 @@ export function PackOpeningOverlay({
   const newCount = cards.filter((pulled) => pulled.isNew).length;
   const dupeCount = cards.length - newCount;
 
+  /**
+   * Inclina la carta siguiendo al puntero. La caja se mide del propio evento
+   * -`currentTarget`- y no con `onLayout`, porque `onLayout` da la posicion
+   * relativa al padre y aqui hace falta la de pantalla para restar el centro.
+   */
+  const inclinar = useCallback(
+    (e: { nativeEvent: { clientX?: number; clientY?: number }; currentTarget?: unknown }) => {
+      const destino = e.currentTarget as { getBoundingClientRect?: () => DOMRect } | undefined;
+      const caja = destino?.getBoundingClientRect?.();
+      const x = e.nativeEvent.clientX;
+      const y = e.nativeEvent.clientY;
+      if (!caja || !caja.width || !caja.height || x == null || y == null) return;
+      const nx = Math.max(-1, Math.min(1, ((x - caja.left) / caja.width) * 2 - 1));
+      const ny = Math.max(-1, Math.min(1, ((y - caja.top) / caja.height) * 2 - 1));
+      tiltX.setValue(nx);
+      tiltY.setValue(ny);
+    },
+    [tiltX, tiltY]
+  );
+
+  /** Vuelve a plano con un rebote corto al salir o soltar. */
+  const soltarGiro = useCallback(() => {
+    for (const v of [tiltX, tiltY]) {
+      Animated.spring(v, {
+        toValue: 0,
+        friction: 6,
+        tension: 90,
+        useNativeDriver: Platform.OS !== 'web',
+      }).start();
+    }
+  }, [tiltX, tiltY]);
+
   const revealStyle = useMemo(() => {
     const translateY = Animated.add(
       enter.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }),
@@ -221,9 +274,26 @@ export function PackOpeningOverlay({
     );
     return {
       opacity: Animated.multiply(enter, exit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })),
-      transform: [{ translateY }, { scale }],
+      transform: [
+        // `perspective` va primero o el giro se ve plano, sin profundidad.
+        { perspective: 900 },
+        { translateY },
+        { scale },
+        {
+          rotateX: tiltY.interpolate({
+            inputRange: [-1, 1],
+            outputRange: [`${TILT_MAX}deg`, `-${TILT_MAX}deg`],
+          }),
+        },
+        {
+          rotateY: tiltX.interpolate({
+            inputRange: [-1, 1],
+            outputRange: [`-${TILT_MAX}deg`, `${TILT_MAX}deg`],
+          }),
+        },
+      ],
     };
-  }, [enter, exit, height]);
+  }, [enter, exit, height, tiltX, tiltY]);
 
   if (phase === 'sealed') {
     return (
@@ -283,9 +353,46 @@ export function PackOpeningOverlay({
           {index + 1} / {revealList.length}
         </Text>
         <Pressable
-          onPress={advance}
+          onPress={() => {
+            // Si se ha girado la carta, el toque era el gesto: no pasa de carta.
+            if (giro.current) {
+              giro.current = false;
+              return;
+            }
+            advance();
+          }}
+          onPointerDown={(e) => {
+            giro.current = false;
+            arranqueGiro.current = {
+              x: e.nativeEvent.clientX ?? 0,
+              y: e.nativeEvent.clientY ?? 0,
+            };
+            inclinar(e);
+          }}
+          onPointerMove={(e) => {
+            const o = arranqueGiro.current;
+            if (o) {
+              const dx = (e.nativeEvent.clientX ?? 0) - o.x;
+              const dy = (e.nativeEvent.clientY ?? 0) - o.y;
+              if (Math.abs(dx) > TILT_DRAG_PX || Math.abs(dy) > TILT_DRAG_PX) giro.current = true;
+            }
+            inclinar(e);
+          }}
+          onPointerUp={() => {
+            arranqueGiro.current = null;
+            soltarGiro();
+          }}
+          onPointerCancel={() => {
+            arranqueGiro.current = null;
+            giro.current = false;
+            soltarGiro();
+          }}
+          onPointerLeave={() => {
+            arranqueGiro.current = null;
+            soltarGiro();
+          }}
           accessibilityRole="button"
-          accessibilityLabel={`${current.card.name}. Toca para continuar`}
+          accessibilityLabel={`${current.card.name}. Toca para continuar, arrastra para girarla`}
           style={[styles.revealArea, { width: cardWidth, height: cardHeight }]}
         >
           {remaining > 1 ? (
