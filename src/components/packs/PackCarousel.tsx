@@ -2,13 +2,10 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { getArtCrop, getBoosterImageUri } from '../../utils/boosterImages';
 import type { PackDefinition } from '../../utils/packs';
 import { BoosterArt } from './BoosterArt';
+import { getCarouselScale } from '../../utils/responsiveLayout';
 
 const CENTER_HEIGHT = 380;
 const SIDE_HEIGHT = 236;
-/** Ancho al que el carrusel se ve a tamaño completo. */
-const FULL_WIDTH = 520;
-/** Alto de ventana necesario para el sobre completo; en cortas se encoge. */
-const FULL_HEIGHT = 840;
 /** Cuánto se solapan los sobres laterales con el central, a escala 1. */
 const OVERLAP = 58;
 
@@ -28,9 +25,7 @@ interface PackCarouselProps {
  */
 export function PackCarousel({ packs, index, onSelect }: PackCarouselProps) {
   const { width, height } = useWindowDimensions();
-  // También manda el alto: el sobre es lo primero que se ve y no debe empujar
-  // los botones fuera de pantalla en ventanas bajas.
-  const scale = Math.max(0.58, Math.min(1, width / FULL_WIDTH, height / FULL_HEIGHT));
+  const scale = getCarouselScale(width, height);
 
   if (!packs.length) return null;
 

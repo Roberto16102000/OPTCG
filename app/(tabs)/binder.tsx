@@ -29,6 +29,7 @@ import {
   type CoverBox,
 } from '../../src/storage/binder';
 import { printBinder, type PrintableSlot } from '../../src/utils/binderPrint';
+import { getBinderBoard } from '../../src/utils/responsiveLayout';
 import { pickCoverImage } from '../../src/utils/coverImage';
 
 /** Lado del tirador; los de Word rondan este tamaño y se agarran bien. */
@@ -240,17 +241,9 @@ export default function BinderScreen() {
 
   const grid = gridOf(binder?.gridSize ?? '3x3');
 
-  const settingsWidth = narrow ? 0 : 260 + spacing.md;
-  const boardWidth = Math.min(width, 1500) - spacing.md * 2 - settingsWidth;
-  /** Dos hojas abiertas como un archivador real; si no caben, una sola. */
-  const spread = !narrow && boardWidth >= 720;
-  const sheets = spread ? 2 : 1;
-  const pageWidth = Math.floor((boardWidth - spacing.md * 3) / sheets);
-  const slotWidth = Math.max(
-    44,
-    Math.min(120, Math.floor((pageWidth - spacing.sm * 3 - grid.cols * spacing.sm) / grid.cols))
-  );
-  const slotHeight = Math.round(slotWidth * 1.39);
+  // La aritmetica vive en `responsiveLayout` para poder comprobarla sobre un
+  // barrido de anchos con `npm run check:responsive`.
+  const { spread, sheets, pageWidth, slotWidth, slotHeight } = getBinderBoard(width, grid.cols);
 
   /**
    * La hoja 0 es la portada y las demás son las páginas: así la portada se pasa

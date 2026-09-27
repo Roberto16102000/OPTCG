@@ -25,17 +25,10 @@ import {
 import { compareCards, formatSetDisplayName } from '../../utils/cards';
 import { CardImage } from '../CardImage';
 import { PirateButton } from '../ui';
+import { getPickerGrid, PICKER_TILE_CHROME } from '../../utils/responsiveLayout';
 
 /** Sin tope, teclear una letra intentaría pintar miles de resultados. */
 const PAGE_SIZE = 80;
-/** Tamaño de referencia de la ficha: decide cuántas columnas, no su ancho. */
-const TILE_WIDTH = 108;
-/** Por debajo de esto la miniatura ya no se distingue. */
-const TILE_MIN = 60;
-/** Lo que la ficha añade alrededor de la imagen: padding 4x2 + borde 2x2. */
-const TILE_CHROME = 12;
-/** Mínimo de columnas al apilar: con dos sobraba casi una ficha de hueco. */
-const STACKED_COLUMNS = 3;
 const FILTERS_WIDTH = 190;
 const SELECTED_WIDTH = 240;
 /** Alto del control de la ficha: el botón y el stepper deben coincidir o la
@@ -147,25 +140,11 @@ export function CardPickerModal({
     });
   };
 
-  // El ancho de la columna central se deduce, no se mide: `onLayout` no vuelve
-  // a dispararse de forma fiable y el grid se quedaba en dos columnas.
-  const chrome = spacing.md * 2 + (wide ? FILTERS_WIDTH + spacing.md + SELECTED_WIDTH + spacing.md : 0);
-  const browserWidth = Math.max(TILE_MIN * STACKED_COLUMNS, width - chrome);
-
-  // Reparto que deja la ficha más cerca de su tamaño de referencia. Se redondea
-  // en vez de truncar: truncando, un ancho justo por debajo del siguiente salto
-  // se quedaba con una columna de menos y el resto de la fila en blanco.
-  const natural = Math.round(
-    (browserWidth + spacing.sm) / (TILE_WIDTH + TILE_CHROME + spacing.sm)
-  );
-  const columns = Math.max(wide ? 2 : STACKED_COLUMNS, natural);
-  // Y la ficha se estira o se encoge hasta llenar la fila exacta. Antes era fija
-  // en 108 px, así que lo que no llegaba a otra columna quedaba vacío.
-  const tileWidth = Math.max(
-    TILE_MIN,
-    Math.floor((browserWidth - spacing.sm * (columns - 1)) / columns) - TILE_CHROME
-  );
-  const tileHeight = Math.round(tileWidth * 1.39);
+  // La aritmetica vive en `responsiveLayout` para poder comprobarla sobre un
+  // barrido de anchos con `npm run check:responsive`. El ancho se deduce y no
+  // se mide: `onLayout` no vuelve a dispararse de forma fiable y el grid se
+  // quedaba en dos columnas.
+  const { columns, tileWidth, tileHeight } = getPickerGrid(width);
 
   const confirm = () => {
     // Se expande aquí: el binder solo entiende de huecos, no de cantidades.
@@ -298,7 +277,7 @@ export function CardPickerModal({
                     <View
                       style={[
                         styles.tile,
-                        { width: tileWidth + TILE_CHROME },
+                        { width: tileWidth + PICKER_TILE_CHROME },
                         qty > 0 && styles.tileSelected,
                       ]}
                     >
