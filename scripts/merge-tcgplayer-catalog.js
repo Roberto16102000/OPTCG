@@ -226,7 +226,9 @@ function variantePorProducto(p, base, id, ids) {
     id: siguienteVariante(codigo, ids),
     images: { small: imagen, large: imagen },
     set: { name: etiqueta ? `${p.setName} - ${etiqueta}` : p.setName ?? base.set?.name },
-    notes: ['source:tcgplayer'],
+    // `premium` la mete en la tirada premium del simulador: son impresiones
+    // que no salen de un sobre normal, igual que las de Limitless.
+    notes: ['source:tcgplayer', 'premium'],
   };
 }
 
