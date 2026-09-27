@@ -3,6 +3,7 @@
  * No requiere API key. Más actualizado que API TCG (OP-15, PRB-02, EB-03, etc.).
  */
 import type { OnePieceCard } from '../types/card';
+import { unifySetNames } from '../utils/cards';
 
 type OfficialCatalogFile = {
   source: string;
@@ -20,8 +21,8 @@ function loadFile(): OfficialCatalogFile | null {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const data = require('../../assets/data/official-catalog.json') as OfficialCatalogFile;
     if (data?.cards?.length) {
-      cached = data;
-      return data;
+      cached = { ...data, cards: unifySetNames(data.cards) };
+      return cached;
     }
   } catch {
     return null;

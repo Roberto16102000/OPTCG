@@ -25,7 +25,7 @@ const DELAY_MS = Number(process.env.IMAGE_DL_DELAY_MS || 150);
 /** Ids de sobre en el sitio de origen → prefijo de código del catálogo. */
 const PACKS = [
   'op01', 'op02', 'op03', 'op04', 'op05', 'op06', 'op07', 'op08',
-  'op09', 'op10', 'op11', 'op12', 'op13', 'op14', 'op15', 'op16',
+  'op09', 'op10', 'op11', 'op12', 'op13', 'op14', 'op15', 'op16', 'op17',
   'eb01', 'eb02', 'eb03',
   'prb01', 'prb02',
   'promo',
@@ -37,13 +37,20 @@ const PACKS = [
  */
 const OVERRIDES = {
   PROMO: 'https://optcgrush.com/assets/STs/Bonus%20pack.png',
+  // El espejo de optcgrush aún no tiene el OP-17: se toma de la página oficial
+  // del producto, que sí publica el arte del sobre suelto.
+  OP17:
+    'https://en.onepiece-cardgame.com/products/boosters/op17/images/others/product_pack.webp',
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function downloadOne(packId, images) {
   const catalogIdEarly = packId.toUpperCase();
-  const fileName = `${packId}.${OVERRIDES[catalogIdEarly] ? 'png' : 'webp'}`;
+  // La extensión sale de la url real: no todos los overrides son png.
+  const override = OVERRIDES[catalogIdEarly];
+  const extension = override ? (override.match(/\.(\w+)(?:\?|$)/)?.[1] ?? 'png') : 'webp';
+  const fileName = `${packId}.${extension}`;
   const filePath = path.join(OUT_DIR, fileName);
   const webPath = `/booster-images/${fileName}`;
   const catalogId = packId.toUpperCase();

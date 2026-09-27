@@ -33,6 +33,15 @@ async function main() {
 
   console.log(`Colecciones a descargar: ${packs.length}`);
   const byId = new Map();
+
+  // Con SYNC_PACK se parte del catálogo que ya hay: si no, una sincronización
+  // de una sola colección borraría todas las demás.
+  if (ONLY_PACK && fs.existsSync(OUT_FILE)) {
+    const previo = JSON.parse(fs.readFileSync(OUT_FILE, 'utf8'));
+    for (const card of previo.cards ?? []) byId.set(card.id, card);
+    console.log(`Partiendo de ${byId.size} cartas ya guardadas`);
+  }
+
   let i = 0;
 
   for (const pack of packs) {
@@ -52,7 +61,9 @@ async function main() {
   const output = {
     source: 'https://en.onepiece-cardgame.com/cardlist/',
     syncedAt: new Date().toISOString(),
-    packCount: packs.length,
+    // Se cuentan las colecciones del resultado, no las descargadas: en una
+    // sincronización parcial no son lo mismo.
+    packCount: new Set(cards.map((card) => card.set?.name).filter(Boolean)).size,
     count: cards.length,
     cards,
   };

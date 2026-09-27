@@ -154,6 +154,83 @@ export function compareSetNames(a: string, b: string): number {
   return codeA.localeCompare(codeB, 'en', { numeric: true });
 }
 
+/**
+ * Identidad de un set a partir de su código. Se quitan los guiones y se toma
+ * el primer bloque de letras y números, de forma que `OP-14` y el código
+ * doble `OP14-EB04` —el mismo producto, booster y extra booster juntos— caen
+ * en la misma clave. `ST-15` o `PRB-01` no se ven afectados.
+ */
+function setIdentity(code: string): string {
+  const plano = code.replace(/-/g, '').toUpperCase();
+  return plano.match(/^([A-Z]+\d+)/)?.[1] ?? plano;
+}
+
+/** Cajón único para todo lo que no pertenece a una colección numerada. */
+export const PROMO_SET_NAME = 'Promotion card';
+
+/**
+ * Familias con colección propia en la pantalla de Sets. Lo demás —productos
+ * sueltos como `AC-01` o los mini-tin `TS-01`, de una a cinco cartas— va al
+ * cajón de promos: cada uno ocupaba una fila entera para casi nada.
+ */
+const MAIN_SET_FAMILIES = new Set(['OP', 'ST', 'EB', 'PRB', 'GC']);
+
+function setFamily(code: string): string {
+  return code.replace(/-/g, '').match(/^([A-Z]+)/i)?.[1]?.toUpperCase() ?? '';
+}
+
+/**
+ * Deja un nombre de colección por set. Hace dos cosas:
+ *
+ * 1. Un mismo set llega con dos nombres —el del listado oficial en inglés y
+ *    el del merge japonés— e incluso con dos códigos (`OP-14` y el doble
+ *    `OP14-EB04`). Se unifican por la identidad del código y gana el nombre
+ *    que más cartas usan.
+ * 2. Las colecciones sin código —promos, premios de torneo, anexos de
+ *    revista, sets de aniversario— y las que no son de una familia principal
+ *    pasan todas a `Promotion card`. Por separado llenaban la pantalla de
+ *    Sets con decenas de filas de una carta.
+ */
+export function unifySetNames(cards: OnePieceCard[]): OnePieceCard[] {
+  const usos = new Map<string, Map<string, number>>();
+
+  for (const card of cards) {
+    const name = card.set?.name?.trim();
+    if (!name) continue;
+    const code = getSetCodeFromName(name);
+    if (!code) continue;
+    const clave = setIdentity(code);
+    const porNombre = usos.get(clave) ?? new Map<string, number>();
+    porNombre.set(name, (porNombre.get(name) ?? 0) + 1);
+    usos.set(clave, porNombre);
+  }
+
+  const canonico = new Map<string, string>();
+  for (const [clave, porNombre] of usos) {
+    if (porNombre.size < 2) continue;
+
+    const [ganador] = [...porNombre.entries()].sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+    );
+    canonico.set(clave, ganador[0]);
+  }
+
+  // Sin `return` temprano aunque `canonico` quede vacío: el plegado a
+  // `Promotion card` es el segundo trabajo de esta función y no depende de que
+  // haya sets con nombre duplicado. Saliendo aquí, un catálogo en el que Bandai
+  // arreglase esos nombres devolvería las 836 promos a sus filas de una carta.
+  return cards.map((card) => {
+    const name = card.set?.name?.trim();
+    if (!name) return card;
+    const code = getSetCodeFromName(name);
+    const esColeccion = code ? MAIN_SET_FAMILIES.has(setFamily(code)) : false;
+    const elegido =
+      code && esColeccion ? canonico.get(setIdentity(code)) ?? name : PROMO_SET_NAME;
+    if (elegido === name) return card;
+    return { ...card, set: { ...card.set, name: elegido } };
+  });
+}
+
 export function extractUniqueSets(cards: OnePieceCard[]): string[] {
   const names = new Set<string>();
   for (const card of cards) {
