@@ -34,15 +34,20 @@ const SHINE_MS = 1500;
 
 /**
  * Cartas que merecen destello al salir: R, SR -incluida SR★-, cualquier arte
- * alternativo y las de ilustración de manga, que el catálogo etiqueta `Comic`.
- * Las rarezas por encima (L, SEC, SP, TR) ya llegan como alternativa o como
- * chase, asi que tambien entran por su propio camino.
+ * alternativo y las de ilustración de manga.
+ *
+ * Lo de manga hay que acotarlo. `illustrationType: 'Comic'` no marca las
+ * *manga rare*: solo dice que la ilustración es una viñeta, y la llevan 279
+ * comunes y 164 UC corrientes -`OP03-098 Enies Lobby`, por ejemplo-. Sin el
+ * filtro brillaban comunes del montón. Una viñeta en C o UC solo cuenta si
+ * además es una impresión alternativa, que entonces sí es la carta especial.
  */
 function isShinyPull(pulled: PulledCard): boolean {
   const rarity = pulled.card.rarity ?? '';
   if (rarity === 'R' || rarity.startsWith('SR')) return true;
   if (pulled.isAltArt) return true;
-  return pulled.card.illustrationType === 'Comic';
+  if (pulled.card.illustrationType !== 'Comic') return false;
+  return !BULK_RARITIES.has(rarity);
 }
 /**
  * A partir de aquí se ofrece el atajo para saltarse el relleno. Con un sobre
