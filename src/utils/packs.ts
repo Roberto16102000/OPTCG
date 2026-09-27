@@ -49,6 +49,19 @@ export function isPremiumCard(card: OnePieceCard): boolean {
   return Boolean(card.notes?.includes(PREMIUM_NOTE));
 }
 
+/**
+ * Cartas de una expansion aun sin salir, tomadas de la preventa: no tienen arte
+ * y sus datos son provisionales. Se quedan fuera de los sobres -no se puede
+ * abrir un set que todavia no existe-. Hoy EB-05 ya reune cartas suficientes
+ * para formar sobre y solo la salva que no haya arte de producto; el dia que se
+ * anada, sin esto empezaria a repartir cartas en blanco.
+ */
+const PRESALE_NOTE = 'presale';
+
+export function isPresaleCard(card: OnePieceCard): boolean {
+  return Boolean(card.notes?.includes(PRESALE_NOTE));
+}
+
 const BOOSTER_PREFIX = /^(OP|EB|PRB)\d+$/;
 const MIN_CARDS_FOR_BOOSTER = 12;
 const CARDS_PER_BOOSTER = 12;
@@ -77,7 +90,7 @@ function plainSetName(card: OnePieceCard): string {
 export function buildPromoPack(cards: OnePieceCard[]): PackDefinition | null {
   const subSets = PROMO_SET_NAMES.map((name) => ({
     name,
-    cards: cards.filter((card) => plainSetName(card) === name),
+    cards: cards.filter((card) => plainSetName(card) === name && !isPresaleCard(card)),
   })).filter((group) => group.cards.length > 0);
 
   if (!subSets.length) return null;
@@ -173,6 +186,7 @@ export function buildPacks(cards: OnePieceCard[]): PackDefinition[] {
   const groups = new Map<string, OnePieceCard[]>();
 
   for (const card of cards) {
+    if (isPresaleCard(card)) continue;
     const prefix = card.code?.split('-')[0];
     if (!prefix || !BOOSTER_PREFIX.test(prefix)) continue;
     const bucket = groups.get(prefix);
