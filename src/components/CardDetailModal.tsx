@@ -330,24 +330,6 @@ export function CardDetailModal({
               </Text>
             </SlotWrap>
 
-            <Pressable
-              style={[wantedSlotStyle(WANTED_SLOTS.navPrev), styles.navHit]}
-              onPress={onPrevious}
-              disabled={!hasPrevious}
-              accessibilityLabel="Carta anterior"
-            >
-              <Text style={[styles.navText, !hasPrevious && styles.navDisabled]}>‹</Text>
-            </Pressable>
-
-            <Pressable
-              style={[wantedSlotStyle(WANTED_SLOTS.navNext), styles.navHit]}
-              onPress={onNext}
-              disabled={!hasNext}
-              accessibilityLabel="Carta siguiente"
-            >
-              <Text style={[styles.navText, !hasNext && styles.navDisabled]}>›</Text>
-            </Pressable>
-
             <SlotWrap slotKey="card" style={styles.cardSlot}>
               <View style={[styles.cardImageInner, { width: cardImgW, height: cardImgH }]}>
                 {imageUri ? (
@@ -383,6 +365,37 @@ export function CardDetailModal({
               </View>
             </SlotWrap>
 
+            {/*
+              Antes iban con `wantedSlotStyle` directo, así que al apilar
+              seguían en posición absoluta sobre un contenedor que fluye: se
+              quedaban flotando encima del texto y con 5%x10% de área táctil.
+              Pasando por SlotWrap, en ancho salen igual y al apilar se
+              convierten en dos botones de media fila bajo la carta.
+            */}
+            <SlotWrap slotKey="navPrev">
+              <Pressable
+                style={[styles.navHit, !wide && styles.navHitStacked]}
+                onPress={onPrevious}
+                disabled={!hasPrevious}
+                accessibilityRole="button"
+                accessibilityLabel="Carta anterior"
+              >
+                <Text style={[styles.navText, !hasPrevious && styles.navDisabled]}>‹</Text>
+              </Pressable>
+            </SlotWrap>
+
+            <SlotWrap slotKey="navNext">
+              <Pressable
+                style={[styles.navHit, !wide && styles.navHitStacked]}
+                onPress={onNext}
+                disabled={!hasNext}
+                accessibilityRole="button"
+                accessibilityLabel="Carta siguiente"
+              >
+                <Text style={[styles.navText, !hasNext && styles.navDisabled]}>›</Text>
+              </Pressable>
+            </SlotWrap>
+
             <SlotWrap slotKey="statLife" style={styles.statSlot}>
               <Text style={[styles.statValue, styles.statValueLife]} numberOfLines={1}>
                 {lifeOrCost}
@@ -402,7 +415,8 @@ export function CardDetailModal({
               </Text>
             </SlotWrap>
 
-            <SlotWrap slotKey="price" style={styles.priceSlot}>
+            <SlotWrap slotKey="price" style={[styles.priceSlot, !wide && styles.slotFlow]}>
+              {!wide ? <Text style={styles.stackLabel}>Precio</Text> : null}
               {priceStatus === 'loading' ? (
                 <Text style={styles.priceMuted}>Cargando…</Text>
               ) : null}
@@ -442,18 +456,32 @@ export function CardDetailModal({
               ) : null}
             </SlotWrap>
 
-            <SlotWrap slotKey="type" style={styles.typeTextSlot}>
-              <Text style={styles.slotBody} numberOfLines={3}>
+            <SlotWrap slotKey="type" style={[styles.typeTextSlot, !wide && styles.slotFlow]}>
+              {!wide ? <Text style={styles.stackLabel}>Tipo</Text> : null}
+              <Text style={styles.slotBody} numberOfLines={wide ? 3 : undefined}>
                 {card.family || '—'}
               </Text>
             </SlotWrap>
 
-            <SlotWrap slotKey="effect" style={styles.effectTextSlot}>
-              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
+            <SlotWrap slotKey="effect" style={[styles.effectTextSlot, !wide && styles.slotFlow]}>
+              {!wide ? <Text style={styles.stackLabel}>Efecto</Text> : null}
+              {/*
+                El scroll anidado solo vale en ancho, donde la zona tiene alto
+                fijo. Apilado no lo tiene, así que el ScrollView se quedaba en
+                nada y cortaba el efecto a media frase; aquí ya scrollea el
+                panel entero.
+              */}
+              {wide ? (
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
+                  <Text style={styles.slotBody}>
+                    {card.ability ? stripCardHtml(card.ability) : '—'}
+                  </Text>
+                </ScrollView>
+              ) : (
                 <Text style={styles.slotBody}>
                   {card.ability ? stripCardHtml(card.ability) : '—'}
                 </Text>
-              </ScrollView>
+              )}
             </SlotWrap>
 
             <SlotWrap slotKey="actions" style={styles.actionsSlot}>
@@ -510,7 +538,7 @@ export function CardDetailModal({
               <ScrollView
                 style={styles.stackScroll}
                 contentContainerStyle={styles.stackContent}
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator
               >
                 {posterContent}
               </ScrollView>
@@ -557,11 +585,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   /** Sobre pergamino el texto claro del poster no se lee: pasa a tinta. */
-  metaStacked: { color: SLOT_INK.label },
+  /** Deja libre la esquina de la X, que apilada flota sobre el papel. */
+  metaStacked: { color: SLOT_INK.label, paddingRight: 44 },
   cardNameStacked: {
     color: SLOT_INK.text,
     fontSize: 24,
     textShadowColor: 'transparent',
+    paddingRight: 44,
   },
   /** Version apilada: papel liso en vez del poster estirado a lo alto. */
   stackScroll: {
@@ -649,7 +679,21 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
-  navHit: { alignItems: 'center', justifyContent: 'center', zIndex: 5 },
+  navHit: {
+    flex: 1,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+  },
+  /** Apilado: área táctil de verdad y aspecto de botón sobre el papel liso. */
+  navHitStacked: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: 'rgba(44, 24, 16, 0.25)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+  },
   navText: { fontSize: 26, color: '#2c1810', fontWeight: '300' },
   navDisabled: { opacity: 0.35 },
   cardSlot: {
@@ -791,6 +835,27 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   actionsSlot: { justifyContent: 'center', paddingHorizontal: '2%' },
+  /**
+   * Apilado se anulan los márgenes del póster: los 26/30/38 px de `paddingTop`
+   * de precio, tipo y efecto están ahí para dejar sitio a los rótulos pintados
+   * en `img/background.png`, que en estrecho no se dibuja. Sin esto quedaban
+   * franjas vacías entre secciones.
+   */
+  slotFlow: {
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingHorizontal: 0,
+    overflow: 'visible',
+  },
+  /** Los rótulos del póster van impresos; apilado hay que escribirlos. */
+  stackLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: SLOT_INK.label,
+    marginBottom: 4,
+  },
   actionRow: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
   addBtn: {
     flex: 1,

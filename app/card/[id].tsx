@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { CardDetailModal } from '../../src/components/CardDetailModal';
 import { OfficialCatalogBanner } from '../../src/components/OfficialCatalogBanner';
-import { hasOfficialCatalog } from '../../src/api/official';
+import { getOfficialCatalogCards, hasOfficialCatalog } from '../../src/api/official';
 import { colors } from '../../src/constants/theme';
 import { useCollection } from '../../src/context/CollectionContext';
 import { useCollectionBounty } from '../../src/context/CollectionBountyContext';
@@ -28,8 +28,11 @@ export default function CardDetailScreen() {
     if (!id) return;
     setLoading(true);
     const cache = await loadCardsCache();
-    const fromCache = cache?.find((c) => c.id === id);
-    setCard(fromCache ?? null);
+    // El caché puede ser anterior a la última expansión: si la carta no está,
+    // se busca en el catálogo que viene con la app.
+    const found =
+      cache?.find((c) => c.id === id) ?? getOfficialCatalogCards().find((c) => c.id === id);
+    setCard(found ?? null);
     setLoading(false);
   }, [id]);
 

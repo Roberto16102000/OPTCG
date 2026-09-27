@@ -41,8 +41,8 @@ const STACK_WIDTHS: Record<string, string> = {
   headerMeta: '100%',
   headerName: '100%',
   card: '100%',
-  navPrev: '50%',
-  navNext: '50%',
+  navPrev: '48%',
+  navNext: '48%',
   statLife: '32%',
   statPower: '32%',
   statColor: '32%',
@@ -68,7 +68,7 @@ export function wantedStackedStyle(key: string): ViewStyle {
 
 /** Carta apilada: manda el ancho del panel, no el hueco del pergamino. */
 export function wantedStackedCardSize(panelWidth: number) {
-  const width = Math.round(Math.min(panelWidth * 0.68, 300));
+  const width = Math.round(Math.min(panelWidth * 0.82, 320));
   return { width, height: Math.round(width / CARD_ASPECT) };
 }
 
