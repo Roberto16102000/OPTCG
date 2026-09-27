@@ -47,3 +47,6 @@ public/card-images/
 # generated native folders
 /ios
 /android
+
+# Imágenes apartadas durante build:pwa
+.pwa-build/

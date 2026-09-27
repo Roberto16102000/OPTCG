@@ -1,0 +1,20 @@
+{
+  "name": "One Piece Collection",
+  "short_name": "OP Collection",
+  "description": "Catálogo, colección, simulador de sobres y binder de One Piece Card Game.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eaf4fb",
+  "theme_color": "#c41e3a",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/icons/icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

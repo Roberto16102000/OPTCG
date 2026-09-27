@@ -40,7 +40,8 @@
     "enrich:en-names": "node scripts/enrich-english-names.js",
     "enrich:illustrations": "node scripts/enrich-illustrations.js",
     "sync:jp-images": "node scripts/sync-jp-images.js",
-    "tcgplayer:prices": "node scripts/tcgplayer-proxy-server.js"
+    "tcgplayer:prices": "node scripts/tcgplayer-proxy-server.js",
+    "build:pwa": "node scripts/build-pwa.js"
   },
   "type": "module",
   "private": true
