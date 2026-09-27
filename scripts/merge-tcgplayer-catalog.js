@@ -63,8 +63,12 @@ const PRODUCTOS = (process.argv.find((a2) => a2.startsWith('--product='))?.split
 const DRY_RUN =
   process.argv.includes('--dry') || (!WITH_PRESALE && !PRODUCTOS.length && !SOLO_ARTE);
 
-/** Etiquetas del parentesis que sí significan un dibujo distinto. */
-const ETIQUETAS_ARTE = [/alternate\s*art/i, /full\s*art/i, /^manga$/i, /^sp$/i];
+/**
+ * Etiquetas que NO son un dibujo distinto, solo otro acabado o un sello del
+ * mismo arte. Se excluyen estas y se acepta el resto: con una lista blanca se
+ * quedaban fuera las promos de evento, que si son arte propio.
+ */
+const ETIQUETAS_ACABADO = [/reprint/i, /parallel/i, /foil/i, /pre-?release/i, /^release/i];
 
 /** Etiqueta descriptiva del nombre: `Zoro (Alternate Art)` -> `Alternate Art`. */
 function etiquetaDe(nombre) {
@@ -77,7 +81,7 @@ function etiquetaDe(nombre) {
 
 function esArteDistinto(nombre) {
   const t = etiquetaDe(nombre);
-  return Boolean(t) && ETIQUETAS_ARTE.some((re) => re.test(t));
+  return Boolean(t) && !ETIQUETAS_ACABADO.some((re) => re.test(t));
 }
 
 /** Forma de un código de carta: `OP18-022`, `EB05-036`, `P-110`. */
@@ -263,54 +267,67 @@ catalogo nuevo: ${catalog.cards.length} cartas`);
       const n = p.customAttributes?.number;
       return n && CODE_RE.test(String(n).toUpperCase());
     });
-    console.log(`
-productos con código: ${conCodigo.length}`);
+    console.log('');
+    console.log(`productos con código: ${conCodigo.length}`);
 
-    // Cuantas variantes tenemos ya de cada codigo.
-    const misVariantes = new Map();
+    /*
+      Una carta de un set numerado -OP, ST, EB, PRB- puede tener ademas
+      impresiones publicadas como promo de evento: Round 1 Promo, packs de
+      torneo, premios de campeonato. TCGplayer las lista bajo "One Piece
+      Promotion Cards" y son arte propio, no un acabado.
+
+      Del lado nuestro, una variante es "de promo" cuando su set no lleva
+      codigo entre corchetes: asi llegan de Limitless y asi acaban en
+      `Promotion card` al unificar.
+
+      Comparar esos dos conjuntos por codigo es lo que hace falta. Cruzar por
+      etiquetas no servia: en `ST29-008` teniamos la Full Art del mazo pero no
+      la Round 1 Promo, y como ambos lados sumaban dos, el hueco salia cero.
+    */
+    const misPromos = new Map();
     for (const c of catalog.cards) {
       const cod = String(c.code || c.id).toUpperCase();
       if (String(c.id).toUpperCase() === cod) continue;
-      misVariantes.set(cod, (misVariantes.get(cod) ?? 0) + 1);
+      const nombre = (c.set?.name || '').trim();
+      if (/\[[^\]]+\]\s*$/.test(nombre)) continue;
+      misPromos.set(cod, (misPromos.get(cod) ?? 0) + 1);
     }
 
     const porCodigo = new Map();
     for (const p of conCodigo) {
       const cod = String(p.customAttributes.number).toUpperCase();
-      if (!codigos.has(cod)) continue; // sets sin salir: fuera, ya se decidio
+      if (!codigos.has(cod)) continue;
+      if (/^P-/.test(cod)) continue;
+      if (!/promotion cards/i.test(p.setName || '')) continue;
       if (!esArteDistinto(p.productName)) continue;
       if (!porCodigo.has(cod)) porCodigo.set(cod, []);
       porCodigo.get(cod).push(p);
     }
 
     const nuevas = [];
-    const porEtiqueta = {};
+    let sinArte = 0;
     for (const [cod, list] of porCodigo) {
-      // Solo el excedente: no se puede saber cual de las suyas es cual de las
-      // nuestras -nuestros ids `_pN` no dicen que impresion son-, asi que se
-      // anade la diferencia y no se duplican las que ya estan.
-      const sobran = list.length - (misVariantes.get(cod) ?? 0);
+      const sobran = list.length - (misPromos.get(cod) ?? 0);
       if (sobran <= 0) continue;
       const base = catalog.cards.find((c) => String(c.id).toUpperCase() === cod);
       if (!base) continue;
       for (const p of list.slice(-sobran)) {
         if (!(await tieneImagen(p.productId))) {
-          console.log(`  ${cod}: ${p.productName} se deja, sin arte publicado`);
+          sinArte += 1;
           continue;
         }
         const carta = variantePorProducto(p, base, p.productId, ids);
         ids.add(carta.id.toUpperCase());
         nuevas.push(carta);
-        const t = etiquetaDe(p.productName) ?? '—';
-        porEtiqueta[t] = (porEtiqueta[t] ?? 0) + 1;
+        if (nuevas.length % 50 === 0) process.stderr.write(`  preparadas ${nuevas.length}
+`);
       }
     }
 
+    console.log(`códigos con impresión promo en TCGplayer: ${porCodigo.size}`);
     console.log(`catálogo actual: ${catalog.cards.length}`);
     console.log(`a añadir: ${nuevas.length}`);
-    for (const [t, n] of Object.entries(porEtiqueta).sort((a2, b2) => b2[1] - a2[1])) {
-      console.log(`  ${String(n).padStart(4)}  ${t}`);
-    }
+    if (sinArte) console.log(`  descartadas por no tener arte publicado: ${sinArte}`);
 
     if (DRY_RUN) {
       console.log('');
