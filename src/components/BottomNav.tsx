@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { name: 'index', href: '/', label: 'Catalog', icon: 'cards-outline' },
   { name: 'packs', href: '/packs', label: 'Packs', icon: 'gift-outline' },
   { name: 'collection', href: '/collection', label: 'Collection', icon: 'star-outline' },
+  { name: 'binder', href: '/binder', label: 'Binder', icon: 'book-open-outline' },
   { name: 'sets', href: '/sets', label: 'Sets', icon: 'map-outline' },
   { name: 'profile', href: '/profile', label: 'Profile', icon: 'account-circle-outline' },
 ] as const;

@@ -38,6 +38,8 @@ export default function TabsLayout() {
 
           <Tabs.Screen name="collection" options={{ title: 'Collection', headerShown: false }} />
 
+          <Tabs.Screen name="binder" options={{ title: 'Binder', headerShown: false }} />
+
           <Tabs.Screen name="sets" options={{ title: 'Sets', headerShown: false }} />
 
           <Tabs.Screen name="profile" options={{ title: 'Profile', headerShown: false }} />

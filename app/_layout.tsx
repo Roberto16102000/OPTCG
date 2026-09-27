@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CollectionProvider } from '../src/context/CollectionContext';
 import { CollectionBountyProvider } from '../src/context/CollectionBountyContext';
 import { PackCollectionProvider } from '../src/context/PackCollectionContext';
+import { BinderProvider } from '../src/context/BinderContext';
 import { ImageRegionProvider } from '../src/context/ImageRegionContext';
 import { colors } from '../src/constants/theme';
 
@@ -14,6 +15,7 @@ export default function RootLayout() {
     <CollectionProvider>
       <CollectionBountyProvider>
       <PackCollectionProvider>
+      <BinderProvider>
       <ImageRegionProvider>
       <StatusBar style="light" />
       <Stack
@@ -31,6 +33,7 @@ export default function RootLayout() {
         />
       </Stack>
       </ImageRegionProvider>
+      </BinderProvider>
       </PackCollectionProvider>
       </CollectionBountyProvider>
     </CollectionProvider>
