@@ -220,20 +220,38 @@ export function countCollectionActiveFilters(
 
 export const COLLECTION_GRID_COLUMNS = 4;
 export const COLLECTION_GRID_GAP = 10;
+/** Por debajo de esto la miniatura deja de distinguirse. */
+const COLLECTION_MIN_TILE = 68;
+/** Padding horizontal del panel de la rejilla. */
+const COLLECTION_GRID_PADDING = 32;
 
-export function getCollectionGridColumns(_containerWidth?: number): number {
-  return COLLECTION_GRID_COLUMNS;
+/**
+ * Cuatro columnas siempre que quepan. Antes eran cuatro fijas y el ancho de
+ * ficha tenia suelo de 68 px, asi que por debajo de 334 px de ventana la fila
+ * medía mas que el panel y la rejilla se salia por la derecha. Ahora se baja
+ * de columnas antes que desbordar, como ya hace la del catalogo.
+ */
+export function getCollectionGridColumns(containerWidth?: number): number {
+  if (!containerWidth || containerWidth <= 0) return COLLECTION_GRID_COLUMNS;
+  const inner = Math.max(0, containerWidth - COLLECTION_GRID_PADDING);
+  for (let cols = COLLECTION_GRID_COLUMNS; cols > 1; cols -= 1) {
+    const tile = (inner - COLLECTION_GRID_GAP * (cols - 1)) / cols;
+    if (tile >= COLLECTION_MIN_TILE) return cols;
+  }
+  return 1;
 }
 
 export function getCollectionTileSize(
   containerWidth: number,
   numColumns: number = COLLECTION_GRID_COLUMNS,
   gap = COLLECTION_GRID_GAP,
-  horizontalPadding = 32
+  horizontalPadding = COLLECTION_GRID_PADDING
 ): { width: number; imageHeight: number } {
   const inner = Math.max(0, containerWidth - horizontalPadding);
   const totalGap = gap * (numColumns - 1);
   const width = Math.floor((inner - totalGap) / numColumns);
   const imageHeight = Math.round(width * 1.35);
-  return { width: Math.max(width, 68), imageHeight };
+  // Sin suelo de 68 px: el numero de columnas ya lo respeta, y forzarlo aqui
+  // era justo lo que hacia que la fila no cupiese.
+  return { width: Math.max(width, 1), imageHeight };
 }

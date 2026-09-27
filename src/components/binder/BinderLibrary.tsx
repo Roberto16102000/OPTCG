@@ -255,7 +255,9 @@ const styles = StyleSheet.create({
   emptyTitle: { ...typography.title, color: colors.text },
   emptyText: { ...typography.caption, color: colors.textMuted, textAlign: 'center', maxWidth: 340 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  card: { width: 280, gap: spacing.sm },
+  // `maxWidth` y no solo `width`: con 280 fijos la tarjeta se salia del panel
+  // por debajo de unos 312 px de ventana.
+  card: { width: 280, maxWidth: '100%', gap: spacing.sm },
   cardBody: { gap: spacing.xs },
   cover: {
     width: '100%',
