@@ -28,6 +28,22 @@ const REVEAL_OUT_MS = 260;
 
 /** Rarezas de relleno: van juntas en una tanda, no de una en una. */
 const BULK_RARITIES = new Set(['C', 'UC']);
+
+/** Duración de una pasada del destello. */
+const SHINE_MS = 1500;
+
+/**
+ * Cartas que merecen destello al salir: R, SR -incluida SR★-, cualquier arte
+ * alternativo y las de ilustración de manga, que el catálogo etiqueta `Comic`.
+ * Las rarezas por encima (L, SEC, SP, TR) ya llegan como alternativa o como
+ * chase, asi que tambien entran por su propio camino.
+ */
+function isShinyPull(pulled: PulledCard): boolean {
+  const rarity = pulled.card.rarity ?? '';
+  if (rarity === 'R' || rarity.startsWith('SR')) return true;
+  if (pulled.isAltArt) return true;
+  return pulled.card.illustrationType === 'Comic';
+}
 /**
  * A partir de aquí se ofrece el atajo para saltarse el relleno. Con un sobre
  * suelto son nueve y pasarlas una a una es parte de la gracia; con cinco
@@ -89,6 +105,7 @@ export function PackOpeningOverlay({
   const enter = useRef(new Animated.Value(0)).current;
   const exit = useRef(new Animated.Value(0)).current;
   const sweep = useRef(new Animated.Value(0)).current;
+  const shine = useRef(new Animated.Value(0)).current;
   // Se consulta dentro de callbacks de animación, donde el estado sería obsoleto.
   const anim = useRef<'idle' | 'in' | 'out'>('idle');
 
@@ -161,6 +178,29 @@ export function PackOpeningOverlay({
   }, [revealList.length, enter, exit, index, playEnter]);
 
   const current = revealList[index];
+  const shiny = phase === 'revealing' && current ? isShinyPull(current) : false;
+
+  /**
+   * El destello va en su propio bucle y no en la animación de entrada: esta
+   * se reinicia con cada carta y el brillo tiene que seguir corriendo
+   * mientras la carta esté en pantalla.
+   */
+  useEffect(() => {
+    if (!shiny) return;
+    shine.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(shine, {
+        toValue: 1,
+        duration: SHINE_MS,
+        easing: Easing.inOut(Easing.quad),
+        // En web el driver nativo no está disponible, como en el resto del archivo.
+        useNativeDriver: Platform.OS !== 'web',
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shiny, index, shine]);
+
   const remaining = revealList.length - index - 1;
   const newCount = cards.filter((pulled) => pulled.isNew).length;
   const dupeCount = cards.length - newCount;
@@ -248,7 +288,68 @@ export function PackOpeningOverlay({
           ) : null}
           {remaining > 0 ? <View style={styles.stackGhost} /> : null}
           <Animated.View style={[styles.revealCard, revealStyle]}>
-            <PulledCardFace pulled={current} width={cardWidth} height={cardHeight} glow={glow} />
+            {/* Halo que respira detrás de la carta. Va aparte del box-shadow
+                fijo de la rareza porque ese no se puede animar. */}
+            {shiny ? (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.halo,
+                  {
+                    width: cardWidth,
+                    height: cardHeight,
+                    backgroundColor: glow ?? colors.goldBright,
+                    opacity: shine.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0.22, 0.55, 0.22],
+                    }),
+                    transform: [
+                      {
+                        scale: shine.interpolate({
+                          inputRange: [0, 0.5, 1],
+                          outputRange: [1.02, 1.09, 1.02],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+            ) : null}
+
+            <View>
+              <PulledCardFace pulled={current} width={cardWidth} height={cardHeight} glow={glow} />
+              {/* El recorte va encima de la carta y no envolviéndola: como
+                  hermano, no corta la sombra de rareza de la ficha. */}
+              {shiny ? (
+                <View
+                  pointerEvents="none"
+                  style={[styles.shineClip, { width: cardWidth, height: cardHeight }]}
+                >
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.shineBar,
+                    {
+                      height: cardHeight * 2,
+                      opacity: shine.interpolate({
+                        inputRange: [0, 0.15, 0.5, 0.85, 1],
+                        outputRange: [0, 0.75, 0.9, 0.75, 0],
+                      }),
+                      transform: [
+                        { rotate: '22deg' },
+                        {
+                          translateX: shine.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [-cardWidth * 0.9, cardWidth * 1.3],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                />
+                </View>
+              ) : null}
+            </View>
           </Animated.View>
         </Pressable>
         <View style={styles.revealActions}>
@@ -486,6 +587,24 @@ const styles = StyleSheet.create({
   stackGhostSecond: {
     opacity: 0.6,
     transform: [{ translateY: 20 }, { scale: 0.92 }],
+  },
+  halo: {
+    position: 'absolute',
+    borderRadius: 18,
+  },
+  /** Recorta el destello a la silueta de la carta, sin envolverla. */
+  shineClip: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  shineBar: {
+    position: 'absolute',
+    top: '-50%',
+    width: 46,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
   },
   revealCard: {
     position: 'absolute',
