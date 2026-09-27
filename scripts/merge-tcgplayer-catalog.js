@@ -38,6 +38,14 @@ const UA = {
 const SIZE = 50;
 const DELAY_MS = Number(process.env.TCG_DELAY_MS || 250);
 
+/**
+ * `--art` anade las impresiones de ARTE DISTINTO que TCGplayer lista y no
+ * tenemos. Quedan fuera a proposito los acabados del mismo dibujo -Reprint,
+ * Parallel, Pirate Foil, Jolly Roger Foil, Textured Foil- porque en la app se
+ * verian identicos a la carta que ya esta, y los sellos Pre-Release y Release.
+ */
+const SOLO_ARTE = process.argv.includes('--art');
+
 const WITH_PRESALE = process.argv.includes('--with-presale');
 /**
  * `--product=707248,...` anade impresiones sueltas por su id de TCGplayer.
@@ -52,7 +60,25 @@ const PRODUCTOS = (process.argv.find((a2) => a2.startsWith('--product='))?.split
   .map((x) => x.trim())
   .filter(Boolean);
 /** Sin `--with-presale` esto es solo una comparacion. */
-const DRY_RUN = process.argv.includes('--dry') || (!WITH_PRESALE && !PRODUCTOS.length);
+const DRY_RUN =
+  process.argv.includes('--dry') || (!WITH_PRESALE && !PRODUCTOS.length && !SOLO_ARTE);
+
+/** Etiquetas del parentesis que sí significan un dibujo distinto. */
+const ETIQUETAS_ARTE = [/alternate\s*art/i, /full\s*art/i, /^manga$/i, /^sp$/i];
+
+/** Etiqueta descriptiva del nombre: `Zoro (Alternate Art)` -> `Alternate Art`. */
+function etiquetaDe(nombre) {
+  const partes = [...String(nombre ?? '').matchAll(/\(([^)]+)\)/g)]
+    .map((m) => m[1].trim())
+    // `(095)` es solo el numero de carta, no una variante.
+    .filter((t) => !/^\d+$/.test(t));
+  return partes.length ? partes[partes.length - 1] : null;
+}
+
+function esArteDistinto(nombre) {
+  const t = etiquetaDe(nombre);
+  return Boolean(t) && ETIQUETAS_ARTE.some((re) => re.test(t));
+}
 
 /** Forma de un código de carta: `OP18-022`, `EB05-036`, `P-110`. */
 const CODE_RE = /^[A-Z]{1,4}\d{0,2}-\d{1,4}$/;
@@ -145,6 +171,23 @@ function toOnePieceCard(p) {
   };
 }
 
+/**
+ * Si el CDN sirve el arte. Los productos de una expansion en preventa
+ * responden 403, y anadir una carta sin imagen no aporta nada: sale como
+ * marcador en toda la app.
+ */
+async function tieneImagen(id) {
+  try {
+    const r = await fetch(`https://tcgplayer-cdn.tcgplayer.com/product/${id}_in_1000x1000.jpg`, {
+      method: 'HEAD',
+      headers: { 'User-Agent': UA['User-Agent'] },
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Ficha completa de un producto por su id. */
 async function fetchProduct(id) {
   const res = await fetch(`https://mp-search-api.tcgplayer.com/v2/product/${id}/details`, {
@@ -210,6 +253,81 @@ async function main() {
     fs.writeFileSync(CATALOG_FILE, JSON.stringify(catalog, null, 0));
     console.log(`
 catalogo nuevo: ${catalog.cards.length} cartas`);
+    return;
+  }
+
+  if (SOLO_ARTE) {
+    console.log('Recorriendo el catálogo de One Piece en TCGplayer...');
+    const productos = await fetchProducts();
+    const conCodigo = productos.filter((p) => {
+      const n = p.customAttributes?.number;
+      return n && CODE_RE.test(String(n).toUpperCase());
+    });
+    console.log(`
+productos con código: ${conCodigo.length}`);
+
+    // Cuantas variantes tenemos ya de cada codigo.
+    const misVariantes = new Map();
+    for (const c of catalog.cards) {
+      const cod = String(c.code || c.id).toUpperCase();
+      if (String(c.id).toUpperCase() === cod) continue;
+      misVariantes.set(cod, (misVariantes.get(cod) ?? 0) + 1);
+    }
+
+    const porCodigo = new Map();
+    for (const p of conCodigo) {
+      const cod = String(p.customAttributes.number).toUpperCase();
+      if (!codigos.has(cod)) continue; // sets sin salir: fuera, ya se decidio
+      if (!esArteDistinto(p.productName)) continue;
+      if (!porCodigo.has(cod)) porCodigo.set(cod, []);
+      porCodigo.get(cod).push(p);
+    }
+
+    const nuevas = [];
+    const porEtiqueta = {};
+    for (const [cod, list] of porCodigo) {
+      // Solo el excedente: no se puede saber cual de las suyas es cual de las
+      // nuestras -nuestros ids `_pN` no dicen que impresion son-, asi que se
+      // anade la diferencia y no se duplican las que ya estan.
+      const sobran = list.length - (misVariantes.get(cod) ?? 0);
+      if (sobran <= 0) continue;
+      const base = catalog.cards.find((c) => String(c.id).toUpperCase() === cod);
+      if (!base) continue;
+      for (const p of list.slice(-sobran)) {
+        if (!(await tieneImagen(p.productId))) {
+          console.log(`  ${cod}: ${p.productName} se deja, sin arte publicado`);
+          continue;
+        }
+        const carta = variantePorProducto(p, base, p.productId, ids);
+        ids.add(carta.id.toUpperCase());
+        nuevas.push(carta);
+        const t = etiquetaDe(p.productName) ?? '—';
+        porEtiqueta[t] = (porEtiqueta[t] ?? 0) + 1;
+      }
+    }
+
+    console.log(`catálogo actual: ${catalog.cards.length}`);
+    console.log(`a añadir: ${nuevas.length}`);
+    for (const [t, n] of Object.entries(porEtiqueta).sort((a2, b2) => b2[1] - a2[1])) {
+      console.log(`  ${String(n).padStart(4)}  ${t}`);
+    }
+
+    if (DRY_RUN) {
+      console.log('');
+      console.log('--dry: no se ha escrito nada');
+      return;
+    }
+    if (!nuevas.length) {
+      console.log('');
+      console.log('Nada que añadir.');
+      return;
+    }
+    catalog.cards = [...catalog.cards, ...nuevas];
+    catalog.count = catalog.cards.length;
+    catalog.tcgplayerArtMergedAt = new Date().toISOString();
+    fs.writeFileSync(CATALOG_FILE, JSON.stringify(catalog, null, 0));
+    console.log('');
+    console.log(`catálogo nuevo: ${catalog.cards.length} cartas`);
     return;
   }
 
