@@ -21,7 +21,10 @@ export function isCatalogCacheStale(
   if (!officialCount) return false;
   if (!cacheMeta) return true;
   if (cacheMeta.source !== 'official') return true;
-  if (cacheMeta.count < officialCount) return true;
+  // Distinto, no menor: un catálogo que encoge está igual de obsoleto que uno
+  // que crece. Con `<`, quitar cartas no invalidaba nada y seguían apareciendo
+  // en la app -OP-18 y EB-05 sobrevivieron así a que las borráramos-.
+  if (cacheMeta.count !== officialCount) return true;
   if (
     officialCatalogSyncedAt &&
     cacheMeta.catalogSyncedAt &&
