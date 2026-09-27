@@ -42,6 +42,7 @@
     "enrich:illustrations": "node scripts/enrich-illustrations.js",
     "sync:jp-images": "node scripts/sync-jp-images.js",
     "tcgplayer:prices": "node scripts/tcgplayer-proxy-server.js",
+    "art:whiten": "node scripts/whiten-deck-art.js",
     "build:pwa": "node scripts/build-pwa.js"
   },
   "type": "module",
