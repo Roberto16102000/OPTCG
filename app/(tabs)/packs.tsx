@@ -24,10 +24,6 @@ import { hasBoosterArt } from '../../src/utils/boosterImages';
 import { buildPacks, buildPromoPack, PITY_THRESHOLD, rollPack, type PulledCard } from '../../src/utils/packs';
 import { getRarityBadgeColors, getRarityBadgeLabel } from '../../src/utils/rarity';
 
-const MULTI_OPEN = 5;
-/** Tirada larga, para avanzar rápido en la colección de un sobre. */
-const BULK_OPEN = 25;
-
 /** Cartas por página en la lista de cartas posibles. */
 const POSSIBLE_PAGE_SIZE = 60;
 
@@ -235,21 +231,9 @@ export default function PacksScreen() {
 
           <View style={styles.actions}>
             <PirateButton
-              label="Open 1"
+              label="Abrir sobre"
               variant="gold"
               onPress={() => open(1)}
-              style={styles.openBtn}
-            />
-            <PirateButton
-              label={`Open ${MULTI_OPEN}`}
-              variant="primary"
-              onPress={() => open(MULTI_OPEN)}
-              style={styles.openBtn}
-            />
-            <PirateButton
-              label={`Open ${BULK_OPEN}`}
-              variant="primary"
-              onPress={() => open(BULK_OPEN)}
               style={styles.openBtn}
             />
           </View>
