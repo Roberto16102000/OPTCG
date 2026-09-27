@@ -39,8 +39,20 @@ const SIZE = 50;
 const DELAY_MS = Number(process.env.TCG_DELAY_MS || 250);
 
 const WITH_PRESALE = process.argv.includes('--with-presale');
+/**
+ * `--product=707248,...` anade impresiones sueltas por su id de TCGplayer.
+ *
+ * Hace falta porque la comparacion por conteo tiene un punto ciego: si ellos
+ * tienen dos impresiones de `OP16-095` y nosotros tambien, cuadra aunque no
+ * sean las mismas -la suya es la Round 1 Promo y la nuestra la de Premium Card
+ * Collection-. Cuando se detecta una asi a ojo, se anade por id.
+ */
+const PRODUCTOS = (process.argv.find((a2) => a2.startsWith('--product='))?.split('=')[1] ?? '')
+  .split(',')
+  .map((x) => x.trim())
+  .filter(Boolean);
 /** Sin `--with-presale` esto es solo una comparacion. */
-const DRY_RUN = process.argv.includes('--dry') || !WITH_PRESALE;
+const DRY_RUN = process.argv.includes('--dry') || (!WITH_PRESALE && !PRODUCTOS.length);
 
 /** Forma de un código de carta: `OP18-022`, `EB05-036`, `P-110`. */
 const CODE_RE = /^[A-Z]{1,4}\d{0,2}-\d{1,4}$/;
@@ -133,9 +145,73 @@ function toOnePieceCard(p) {
   };
 }
 
+/** Ficha completa de un producto por su id. */
+async function fetchProduct(id) {
+  const res = await fetch(`https://mp-search-api.tcgplayer.com/v2/product/${id}/details`, {
+    headers: { 'User-Agent': UA['User-Agent'] },
+  });
+  if (!res.ok) throw new Error(`producto ${id}: HTTP ${res.status}`);
+  return res.json();
+}
+
+/** Siguiente sufijo `_pN` libre para ese codigo. */
+function siguienteVariante(codigo, existentes) {
+  let n = 1;
+  while (existentes.has(`${codigo}_P${n}`)) n += 1;
+  return `${codigo}_p${n}`;
+}
+
+/**
+ * Impresion suelta: se clona la carta base para no reinventar sus datos de
+ * juego -son los mismos, solo cambia el arte- y se le pone su propia imagen.
+ */
+function variantePorProducto(p, base, id, ids) {
+  const a = p.customAttributes ?? {};
+  const codigo = String(a.number ?? base?.code ?? '').toUpperCase();
+  if (!codigo) throw new Error(`producto ${id}: sin numero de carta`);
+  if (!base) throw new Error(`producto ${id}: no tenemos la carta base ${codigo}`);
+
+  const imagen = `https://tcgplayer-cdn.tcgplayer.com/product/${id}_in_1000x1000.jpg`;
+  const etiqueta = String(p.productName ?? '').match(/\(([^)]+)\)\s*$/)?.[1]?.trim();
+
+  return {
+    ...base,
+    id: siguienteVariante(codigo, ids),
+    images: { small: imagen, large: imagen },
+    set: { name: etiqueta ? `${p.setName} - ${etiqueta}` : p.setName ?? base.set?.name },
+    notes: ['source:tcgplayer'],
+  };
+}
+
 async function main() {
   const catalog = JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8'));
   const codigos = new Set(catalog.cards.map((c) => String(c.code || c.id).toUpperCase()));
+  const ids = new Set(catalog.cards.map((c) => String(c.id).toUpperCase()));
+
+  if (PRODUCTOS.length) {
+    const nuevas = [];
+    for (const id of PRODUCTOS) {
+      const p = await fetchProduct(id);
+      const codigo = String(p.customAttributes?.number ?? '').toUpperCase();
+      const base = catalog.cards.find((c) => String(c.id).toUpperCase() === codigo);
+      const carta = variantePorProducto(p, base, id, ids);
+      ids.add(carta.id.toUpperCase());
+      nuevas.push(carta);
+      console.log(`  ${id} -> ${carta.id}  ${carta.name}  [${carta.set?.name}]`);
+      await sleep(DELAY_MS);
+    }
+    if (DRY_RUN) {
+      console.log('');
+      console.log('--dry: no se ha escrito nada');
+      return;
+    }
+    catalog.cards = [...catalog.cards, ...nuevas];
+    catalog.count = catalog.cards.length;
+    fs.writeFileSync(CATALOG_FILE, JSON.stringify(catalog, null, 0));
+    console.log(`
+catalogo nuevo: ${catalog.cards.length} cartas`);
+    return;
+  }
 
   console.log('Recorriendo el catálogo de One Piece en TCGplayer...');
   const productos = await fetchProducts();
