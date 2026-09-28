@@ -367,9 +367,9 @@ function PossibleCards({
 }) {
   const { getDisplayImageUri } = useImageRegion();
 
-  // Un sobre de una carta reparte de todo su fondo; los boosters, de su
-  // numeración base, que es su lista de comprobación.
-  const possible = pack.cardsPerPack === 1 ? pack.cards : pack.baseCards;
+  // El de promos reparte de todo su fondo; los boosters, de su numeración
+  // base, que es su lista de comprobación.
+  const possible = pack.subSets ? pack.cards : pack.baseCards;
 
   // El promo llega a 548 cartas y la rejilla no está virtualizada: se pagina.
   const [page, setPage] = useState(1);

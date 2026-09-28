@@ -69,6 +69,9 @@ const CARDS_PER_BOOSTER = 12;
 /** Id del sobre de promos; no viene del catálogo, se construye aparte. */
 export const PROMO_PACK_ID = 'PROMO';
 
+/** Cartas que reparte el sobre de promos. */
+export const PROMO_CARDS_PER_PACK = 5;
+
 /**
  * Sobre de promos y productos sueltos: las cartas que no pertenecen a ningún
  * booster ni mazo. Reparte una sola carta, como el Bonus Pack real.
@@ -105,7 +108,7 @@ export function buildPromoPack(cards: OnePieceCard[]): PackDefinition | null {
     name: 'Promos y otros',
     cards: pool,
     baseCards,
-    cardsPerPack: 1,
+    cardsPerPack: PROMO_CARDS_PER_PACK,
     subSets,
   };
 }
@@ -306,25 +309,31 @@ export function rollPack(pack: PackDefinition, options: RollOptions = {}): RollR
   const premiumPool = altArtPool.filter(isPremiumCard);
   const plainAltPool = altArtPool.filter((card) => !isPremiumCard(card));
 
-  // El sobre de promos reparte una sola carta: no tiene slots comunes, solo
-  // el sorteo del "hit" sobre todo su fondo.
-  if (pack.cardsPerPack === 1) {
-    // Sortea sobre el fondo entero, variantes incluidas: un promo no tiene
-    // slots ni numeración base que respetar, y las 449 alternativas también
-    // forman parte de esas colecciones.
-    const card = pickRandom(pack.cards);
-    return {
-      cards: [
-        {
-          card,
-          tier: card.rarity === 'P' ? 'high' : 'mid',
-          isNew: !ownedIds?.has(card.id),
-          isAltArt: card.id !== card.code,
-          isPremium: isPremiumCard(card),
-        },
-      ],
-      packsSinceChase: packsSinceChase + 1,
-    };
+  /*
+    El sobre de promos no tiene slots ni numeración base que respetar: sortea
+    sobre su fondo entero, variantes incluidas, porque también forman parte de
+    esas colecciones. Se identifica por su id y no por cuántas cartas da, que
+    ahora son varias.
+  */
+  if (pack.id === PROMO_PACK_ID) {
+    const disponibles = [...pack.cards];
+    const sacadas: PulledCard[] = [];
+    const cuantas = Math.min(pack.cardsPerPack, disponibles.length);
+
+    for (let i = 0; i < cuantas; i += 1) {
+      // Se saca del montón para no repetir carta dentro del mismo sobre.
+      const j = Math.floor(Math.random() * disponibles.length);
+      const [card] = disponibles.splice(j, 1);
+      sacadas.push({
+        card,
+        tier: card.rarity === 'P' ? 'high' : 'mid',
+        isNew: !ownedIds?.has(card.id),
+        isAltArt: card.id !== card.code,
+        isPremium: isPremiumCard(card),
+      });
+    }
+
+    return { cards: sacadas, packsSinceChase: packsSinceChase + 1 };
   }
 
   const slots: { key: 'common' | 'uncommon' | 'rare'; count: number; tier: PullTier }[] = [
