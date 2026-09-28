@@ -32,6 +32,14 @@ export function resolveCardImageUrl(
   if (Platform.OS !== 'web') return uri;
   if (uri.startsWith('/card-images/')) return uri;
   if (uri.includes('wsrv.nl') || uri.includes('weserv.nl')) return uri;
+  /*
+    El CDN de TCGplayer rechaza al proxy: wsrv devuelve 400 con sus URLs,
+    mientras que el navegador las carga directas sin problema -200 y sin
+    `Cross-Origin-Resource-Policy`-. Son 312 cartas y pesan mas al no pasar por
+    el reescalado, pero la alternativa era verlas rotas. Las otras tres fuentes
+    -Bandai, dotgg y Limitless- si funcionan por el proxy.
+  */
+  if (uri.includes('tcgplayer-cdn.tcgplayer.com')) return uri;
 
   const cacheKey = `v5|${uri}|${width}`;
   const cached = resolvedUrlCache.get(cacheKey);
