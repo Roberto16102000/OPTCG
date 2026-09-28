@@ -13,6 +13,7 @@ import { getOfficialCatalogMeta } from '../../src/api/official';
 import { RegionFilter } from '../../src/components/RegionFilter';
 import { colors, radii, spacing } from '../../src/constants/theme';
 import { useCollection } from '../../src/context/CollectionContext';
+import { usePackCollection } from '../../src/context/PackCollectionContext';
 import { useCollectionBounty } from '../../src/context/CollectionBountyContext';
 import { useCatalogCards } from '../../src/hooks/useCatalogCards';
 import { getCacheMeta } from '../../src/storage/collection';
@@ -23,10 +24,17 @@ import { isRareRarity } from '../../src/utils/rarity';
 export default function ProfileScreen() {
   const router = useRouter();
   const { collectionList, totalCards, clearAll, loading: collectionLoading } = useCollection();
+  const {
+    packList,
+    totalCopies: packCopies,
+    clearAll: clearPacks,
+  } = usePackCollection();
   const { bountyUsd } = useCollectionBounty();
   const { cards, loading: catalogLoading, refresh } = useCatalogCards();
   const [cacheSyncedAt, setCacheSyncedAt] = useState<string | null>(null);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  /** Las del simulador van aparte de la colección física. */
+  const [confirmingPacks, setConfirmingPacks] = useState(false);
 
   const loadMeta = useCallback(async () => {
     const meta = await getCacheMeta();
@@ -122,6 +130,24 @@ export default function ProfileScreen() {
             return;
           }
           void clearAll().then(() => setConfirmingClear(false));
+        }}
+      />
+
+      <PirateButton
+        label={
+          confirmingPacks
+            ? `Confirmar: borrar ${packCopies} cartas abiertas`
+            : `Vaciar el simulador de sobres${packList.length ? ` (${packList.length})` : ''}`
+        }
+        variant={confirmingPacks ? 'primary' : 'ghost'}
+        disabled={!packList.length}
+        onPress={() => {
+          // Dos toques, como en la colección: vaciar no tiene deshacer.
+          if (!confirmingPacks) {
+            setConfirmingPacks(true);
+            return;
+          }
+          void clearPacks().then(() => setConfirmingPacks(false));
         }}
       />
 
