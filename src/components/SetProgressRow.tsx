@@ -48,6 +48,21 @@ export function SetProgressRow({
   onPress,
 }: SetProgressRowProps) {
   const [expanded, setExpanded] = useState(false);
+  /** Ancho real de la rejilla; los huecos se reparten sobre él. */
+  const [gridWidth, setGridWidth] = useState(0);
+
+  /*
+    Antes el hueco era fijo en 62 px y la fila se quedaba en tres, dejando
+    hueco muerto a la derecha. Ahora el hueco se calcula: cuatro por fila como
+    mínimo y los que quepan si hay más sitio, repartiendo el ancho exacto.
+  */
+  const columns = gridWidth
+    ? Math.max(MIN_SLOT_COLUMNS, Math.round((gridWidth + GRID_GAP) / (SLOT_WIDTH + GRID_GAP)))
+    : MIN_SLOT_COLUMNS;
+  const slotWidth = gridWidth
+    ? Math.floor((gridWidth - GRID_GAP * (columns - 1)) / columns)
+    : SLOT_WIDTH;
+  const slotHeight = Math.round(slotWidth * (SLOT_HEIGHT / SLOT_WIDTH));
   const { getDisplayImageUri } = useImageRegion();
   const pct = total ? Math.min(100, Math.round((owned / total) * 100)) : 0;
   const code = codeOverride ?? getSetCodeFromName(setName);
@@ -111,7 +126,13 @@ export function SetProgressRow({
       </Pressable>
 
       {expanded ? (
-        <View style={styles.grid}>
+        <View
+          style={styles.grid}
+          onLayout={(e) => {
+            const w = Math.floor(e.nativeEvent.layout.width);
+            if (w > 0 && w !== gridWidth) setGridWidth(w);
+          }}
+        >
           {(cards ?? []).map((card) => {
             const has = isInCollection?.(card.id) ?? false;
             const uri = has ? getDisplayImageUri(card) : undefined;
@@ -121,14 +142,18 @@ export function SetProgressRow({
                 onPress={onPress}
                 accessibilityRole="button"
                 accessibilityLabel={`${card.name}${has ? '' : ', te falta'}`}
-                style={[styles.slot, !has && styles.slotMissing]}
+                style={[
+                  styles.slot,
+                  { width: slotWidth, height: slotHeight },
+                  !has && styles.slotMissing,
+                ]}
               >
                 {has && uri ? (
                   <CardImage
                     uri={uri}
                     fallbackUri={card.images?.small}
-                    width={SLOT_WIDTH}
-                    height={SLOT_HEIGHT}
+                    width={slotWidth}
+                    height={slotHeight}
                     priority="low"
                     recyclingKey={card.id}
                   />
@@ -145,8 +170,12 @@ export function SetProgressRow({
 }
 
 const THUMB_HEIGHT = 54;
+/** Tamaño de referencia del hueco: decide cuántos caben, no su ancho final. */
 const SLOT_WIDTH = 62;
 const SLOT_HEIGHT = 86;
+/** Mínimo por fila: con tres sobraba casi un hueco de sitio. */
+const MIN_SLOT_COLUMNS = 4;
+const GRID_GAP = spacing.xs;
 
 const styles = StyleSheet.create({
   footRow: {
@@ -162,12 +191,10 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: GRID_GAP,
     marginTop: spacing.sm,
   },
   slot: {
-    width: SLOT_WIDTH,
-    height: SLOT_HEIGHT,
     borderRadius: radii.sm,
     overflow: 'hidden',
   },
