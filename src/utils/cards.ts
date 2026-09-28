@@ -55,6 +55,17 @@ export function resolveCardImageUrl(
   return resolved;
 }
 
+/**
+ * La misma URL por el host espejo del proxy. Sirve de reintento: los fallos de
+ * wsrv son intermitentes -con 60 imagenes pedidas a la vez caen algunas- y
+ * volver a pedirla por el espejo suele bastar.
+ */
+export function mirrorProxyUrl(url: string): string | null {
+  if (url.includes('//wsrv.nl')) return url.replace('//wsrv.nl', '//images.weserv.nl');
+  if (url.includes('//images.weserv.nl')) return url.replace('//images.weserv.nl', '//wsrv.nl');
+  return null;
+}
+
 export function getCardSetName(card: OnePieceCard): string | null {
   const name = card.set?.name?.trim();
   return name || null;

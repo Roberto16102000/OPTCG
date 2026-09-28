@@ -1,7 +1,7 @@
 import { Image, type ImageProps } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { isLocalWebImageUri } from '../utils/localImages';
+import { mirrorProxyUrl } from '../utils/cards';
 import { resolveDisplayImageUri } from '../utils/imageLoading';
 
 interface CardImageProps {
@@ -29,8 +29,8 @@ export function CardImage({
   recyclingKey,
   fallbackUri,
 }: CardImageProps) {
-  const [failed, setFailed] = useState(false);
-  const [useFallback, setUseFallback] = useState(false);
+  /** Cual de los candidatos se esta intentando; al agotarlos, el marcador. */
+  const [intento, setIntento] = useState(0);
 
   const primaryUri = useMemo(
     () => resolveDisplayImageUri(uri, width, height),
@@ -42,25 +42,33 @@ export function CardImage({
     return resolveDisplayImageUri(fallbackUri, width, height);
   }, [fallbackUri, width, height]);
 
-  const displayUri =
-    useFallback && remoteFallbackUri ? remoteFallbackUri : primaryUri;
+  /*
+    Cadena de intentos: la principal, luego la remota de respaldo y, por
+    ultimo, cada una por el host espejo del proxy.
 
-  useEffect(() => {
-    setFailed(false);
-    setUseFallback(false);
+    Antes solo habia un respaldo y ademas exigia que la principal fuese local,
+    asi que un fallo del proxy -que es intermitente cuando se piden 60 de golpe-
+    dejaba la carta en el marcador para siempre, sin reintentar.
+  */
+  const candidatos = useMemo(() => {
+    const lista: string[] = [primaryUri];
+    if (remoteFallbackUri && remoteFallbackUri !== primaryUri) lista.push(remoteFallbackUri);
+    for (const u of [...lista]) {
+      const espejo = mirrorProxyUrl(u);
+      if (espejo && !lista.includes(espejo)) lista.push(espejo);
+    }
+    return lista;
   }, [primaryUri, remoteFallbackUri]);
 
+  const displayUri = candidatos[intento];
+  const failed = intento >= candidatos.length;
+
+  useEffect(() => {
+    setIntento(0);
+  }, [candidatos]);
+
   const handleError = () => {
-    if (
-      !useFallback &&
-      remoteFallbackUri &&
-      isLocalWebImageUri(uri) &&
-      displayUri !== remoteFallbackUri
-    ) {
-      setUseFallback(true);
-      return;
-    }
-    setFailed(true);
+    setIntento((n) => n + 1);
   };
 
   return (
