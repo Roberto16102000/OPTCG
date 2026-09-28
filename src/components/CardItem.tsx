@@ -40,7 +40,6 @@ function CardItemInner({
             height={IMAGE_HEIGHT}
             priority="low"
             recyclingKey={card.id}
-            trimId={card.id}
           />
         ) : (
           <View style={styles.imagePlaceholder}>

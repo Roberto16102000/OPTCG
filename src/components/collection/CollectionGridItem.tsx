@@ -68,7 +68,6 @@ export function CollectionGridItem({
             priority="low"
             recyclingKey={card.id}
             style={styles.image}
-            trimId={card.id}
           />
         ) : (
           <View style={styles.placeholder}>
