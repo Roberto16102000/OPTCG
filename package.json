@@ -47,6 +47,7 @@
     "art:whiten": "node scripts/whiten-deck-art.js",
     "check:responsive": "node scripts/check-responsive.mjs",
     "check:visual": "node scripts/check-responsive-visual.mjs",
+    "build": "node scripts/build-pwa.js",
     "build:pwa": "node scripts/build-pwa.js"
   },
   "type": "module",
