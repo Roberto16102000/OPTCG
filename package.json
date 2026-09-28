@@ -45,6 +45,7 @@
     "sync:jp-images": "node scripts/sync-jp-images.js",
     "tcgplayer:prices": "node scripts/tcgplayer-proxy-server.js",
     "art:whiten": "node scripts/whiten-deck-art.js",
+    "measure:trim": "node scripts/measure-card-trim.js",
     "check:responsive": "node scripts/check-responsive.mjs",
     "check:visual": "node scripts/check-responsive-visual.mjs",
     "build:pwa": "node scripts/build-pwa.js"

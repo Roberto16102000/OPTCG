@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { isLocalWebImageUri } from '../utils/localImages';
 import { resolveDisplayImageUri } from '../utils/imageLoading';
+import { getCardTrim } from '../utils/cardTrim';
 
 interface CardImageProps {
   uri: string;
@@ -15,6 +16,13 @@ interface CardImageProps {
   recyclingKey?: string;
   /** URL remota de respaldo si la local (/card-images/) falla en web. */
   fallbackUri?: string;
+  /**
+   * Id de la carta para recortarle el marco claro del escaneo de Bandai.
+   * Cuanto recortar sale de `card-trim-manifest.json`, medido imagen a imagen:
+   * el marco va de 0 a un 2,8 % del ancho segun la carta, asi que un valor
+   * fijo se comeria contenido en las que menos traen.
+   */
+  trimId?: string;
 }
 
 /** Card image with disk cache (native + web) and optional wsrv proxy on web. */
@@ -28,6 +36,7 @@ export function CardImage({
   priority = 'normal',
   recyclingKey,
   fallbackUri,
+  trimId,
 }: CardImageProps) {
   const [failed, setFailed] = useState(false);
   const [useFallback, setUseFallback] = useState(false);
@@ -44,6 +53,13 @@ export function CardImage({
 
   const displayUri =
     useFallback && remoteFallbackUri ? remoteFallbackUri : primaryUri;
+
+  // Solo se recorta la imagen local medida; el respaldo remoto es otro
+  // encuadre y recortarlo a ciegas cortaria la carta.
+  const trim = useMemo(
+    () => (trimId && !useFallback ? getCardTrim(trimId) : null),
+    [trimId, useFallback]
+  );
 
   useEffect(() => {
     setFailed(false);
@@ -68,8 +84,21 @@ export function CardImage({
       {!failed ? (
         <Image
           source={{ uri: displayUri }}
-          style={{ width, height }}
-          contentFit={contentFit}
+          style={
+            trim
+              ? {
+                  // La imagen se agranda y se desplaza para que el marco caiga
+                  // fuera del recorte del contenedor.
+                  width: width / (1 - trim.l - trim.r),
+                  height: height / (1 - trim.t - trim.b),
+                  marginLeft: -(width / (1 - trim.l - trim.r)) * trim.l,
+                  marginTop: -(height / (1 - trim.t - trim.b)) * trim.t,
+                }
+              : { width, height }
+          }
+          // Recortando hay que estirar al hueco: con `contain` volveria a
+          // dejar franjas, que es justo lo que se esta quitando.
+          contentFit={trim ? 'fill' : contentFit}
           contentPosition={contentPosition}
           cachePolicy="memory-disk"
           priority={priority}

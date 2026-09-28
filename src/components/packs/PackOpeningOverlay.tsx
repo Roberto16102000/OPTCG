@@ -566,6 +566,7 @@ function PulledCardFace({ pulled, width, height, glow, compact }: PulledCardFace
           height={height}
           recyclingKey={pulled.card.id}
           style={styles.faceImage}
+          trimId={pulled.card.id}
         />
       ) : (
         <View style={[styles.facePlaceholder, { width, height }]}>

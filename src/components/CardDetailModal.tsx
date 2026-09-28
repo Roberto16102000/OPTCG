@@ -342,6 +342,7 @@ export function CardDetailModal({
                     contentFit="contain"
                     priority="high"
                     recyclingKey={card.id}
+                    trimId={card.id}
                   />
                 ) : (
                   <View style={[styles.cardPlaceholder, { width: cardImgW, height: cardImgH }]}>
