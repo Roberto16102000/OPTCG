@@ -32,8 +32,16 @@ function esMarco(r, g, b) {
   return min > 205 && max - min < 26;
 }
 
-/** Una linea cuenta como marco si casi toda ella lo es. */
-const UMBRAL = 0.985;
+/**
+ * Una linea cuenta como marco si mas de la mitad lo es.
+ *
+ * Exigir casi el 100 % no funciona: la insignia de rareza y el icono de la
+ * esquina sobresalen hacia el margen, asi que la primera columna con un trozo
+ * de insignia rompia la cuenta y el recorte se quedaba a medias. Midiendo por
+ * mayoria sale ~22-25 px en todas las que traen marco, y sigue dando cero en
+ * las que vienen a sangre.
+ */
+const UMBRAL = 0.5;
 /** Tope de seguridad: mas de esto no es marco, es la carta. */
 const MAX_FRAC = 0.05;
 
