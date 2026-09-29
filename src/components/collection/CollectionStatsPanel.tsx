@@ -92,6 +92,7 @@ export function CollectionStatsPanel({
               <CardImage
                 uri={getDisplayImageUri(mostValuable.entry.card) ?? mostValuable.entry.card.images.small}
                 fallbackUri={mostValuable.entry.card.images?.small}
+                cardId={mostValuable.entry.card.id}
                 width={56}
                 height={78}
                 recyclingKey={mostValuable.entry.card.id}
@@ -117,6 +118,7 @@ export function CollectionStatsPanel({
                   <CardImage
                     uri={getDisplayImageUri(entry.card) ?? entry.card.images.small}
                     fallbackUri={entry.card.images?.small}
+                    cardId={entry.card.id}
                     width={36}
                     height={50}
                     recyclingKey={entry.card.id}

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { mirrorProxyUrl } from '../utils/cards';
 import { resolveDisplayImageUri } from '../utils/imageLoading';
-import { getCardThumbUri } from '../utils/cardThumbs';
+import { getCardThumbPath, getCardThumbUri } from '../utils/cardThumbs';
 
 interface CardImageProps {
   uri: string;
@@ -22,6 +22,8 @@ interface CardImageProps {
    * piden 60 imagenes de golpe.
    */
   cardId?: string;
+  /** Avisa cuando la imagen definitiva ya esta en pantalla. */
+  onLoaded?: () => void;
 }
 
 /** Card image with disk cache (native + web) and optional wsrv proxy on web. */
@@ -36,6 +38,7 @@ export function CardImage({
   recyclingKey,
   fallbackUri,
   cardId,
+  onLoaded,
 }: CardImageProps) {
   /** Cual de los candidatos se esta intentando; al agotarlos, el marcador. */
   const [intento, setIntento] = useState(0);
@@ -76,6 +79,22 @@ export function CardImage({
   const displayUri = candidatos[intento];
   const failed = intento >= candidatos.length;
 
+  /*
+    Primer fotograma: cuando lo que toca pintar NO es ya la miniatura -ficha de
+    carta, apertura de sobres-, se usa la miniatura de relleno mientras llega.
+    La rejilla acaba de descargarla, asi que entra sin red y sin espera; la
+    nitida la sustituye por encima con la transicion.
+
+    `placeholderContentFit` tiene que ir igual que `contentFit`: el valor por
+    defecto del relleno es `scale-down` y el de la imagen `cover`, y esa
+    diferencia hace que al cambiar se vea un salto.
+  */
+  const placeholderUri = useMemo(() => {
+    const thumb = getCardThumbPath(cardId);
+    if (!thumb || thumb === displayUri) return undefined;
+    return thumb;
+  }, [cardId, displayUri]);
+
   useEffect(() => {
     setIntento(0);
   }, [candidatos]);
@@ -94,9 +113,12 @@ export function CardImage({
           contentPosition={contentPosition}
           cachePolicy="memory-disk"
           priority={priority}
+          placeholder={placeholderUri ? { uri: placeholderUri } : undefined}
+          placeholderContentFit={contentFit}
           recyclingKey={recyclingKey ?? displayUri}
           transition={120}
           onError={handleError}
+          onLoad={onLoaded}
         />
       ) : (
         <Placeholder width={width} height={height} />

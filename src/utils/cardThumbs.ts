@@ -5,8 +5,10 @@
  * por un proxy externo, la diferencia se nota. Las genera
  * `npm run build:thumbs` en `public/card-thumbs/`.
  *
- * La ficha de carta y la apertura de sobres NO las usan: ahí se ve una carta
- * cada vez y vale más la calidad que el peso.
+ * La ficha de carta y la apertura de sobres no las usan como imagen final
+ * -ahí vale más la calidad que el peso-, pero sí como primer fotograma
+ * mientras llega la nítida: la rejilla acaba de descargarla, así que aparece
+ * sin esperar nada. Ver `getCardThumbPath`.
  */
 import { Platform } from 'react-native';
 import { resolveWebStaticPath } from './localImages';
@@ -28,7 +30,19 @@ export const THUMB_WIDTH = 300;
  * reintenta con la imagen remota.
  */
 export function getCardThumbUri(cardId: string | undefined, width: number): string | null {
+  if (width > THUMB_MAX_WIDTH) return null;
+  return getCardThumbPath(cardId);
+}
+
+/**
+ * Ruta de la miniatura sin mirar el tamaño, para usarla de primer fotograma.
+ *
+ * A tamaño grande se ve blanda, pero dura lo que tarda la nítida y evita el
+ * hueco: pedir la de 480 px al proxy cuesta unos 450 ms con su caché caliente
+ * y pasa de cuatro segundos cuando es la primera vez que la transforma.
+ */
+export function getCardThumbPath(cardId: string | undefined): string | null {
   if (Platform.OS !== 'web') return null;
-  if (!cardId || width > THUMB_MAX_WIDTH) return null;
+  if (!cardId) return null;
   return resolveWebStaticPath(`/card-thumbs/${encodeURIComponent(cardId)}.webp`);
 }

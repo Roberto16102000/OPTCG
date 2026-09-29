@@ -91,6 +91,7 @@ export function SetProgressRow({
             <CardImage
               uri={coverUri}
               fallbackUri={cover?.images?.small}
+              cardId={cover?.id}
               width={THUMB_HEIGHT * 0.72}
               height={THUMB_HEIGHT}
               priority="low"

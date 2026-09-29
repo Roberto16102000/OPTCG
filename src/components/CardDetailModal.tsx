@@ -157,10 +157,31 @@ export function CardDetailModal({
     void loadFavoriteIds().then(setFavoriteIds);
   }, [visible]);
 
+  /*
+    Las cartas vecinas -para poder pasar a la siguiente sin espera- se precargan
+    DESPUES de que se vea la que estas mirando, no a la vez.
+
+    Antes salian las cinco de golpe y competian por las mismas conexiones: una
+    peticion suelta al proxy tarda unos 450 ms, pero medido en el navegador con
+    todas juntas la visible tardaba entre 3130 y 3879 ms. El temporizador es el
+    plan B para cuando la imagen no llega a cargar -no hay imagen, o falla la
+    cadena de respaldo-, para no dejar las vecinas sin precargar nunca.
+  */
+  const [principalLista, setPrincipalLista] = useState(false);
+
+  useEffect(() => {
+    setPrincipalLista(false);
+  }, [visible, card?.id]);
+
   useEffect(() => {
     if (!visible || !prefetchUris.length) return;
-    void prefetchImageUris(prefetchUris, DETAIL_IMAGE.width, DETAIL_IMAGE.height);
-  }, [visible, prefetchUris]);
+    if (principalLista) {
+      void prefetchImageUris(prefetchUris, DETAIL_IMAGE.width, DETAIL_IMAGE.height);
+      return;
+    }
+    const plan_b = setTimeout(() => setPrincipalLista(true), 2500);
+    return () => clearTimeout(plan_b);
+  }, [visible, prefetchUris, principalLista]);
 
   useEffect(() => {
     if (!visible) setReward(null);
@@ -337,11 +358,13 @@ export function CardDetailModal({
                     key={card.id}
                     uri={imageUri}
                     fallbackUri={card.images?.large || card.images?.small}
+                    cardId={card.id}
                     width={cardImgW}
                     height={cardImgH}
                     contentFit="contain"
                     priority="high"
                     recyclingKey={card.id}
+                    onLoaded={() => setPrincipalLista(true)}
                   />
                 ) : (
                   <View style={[styles.cardPlaceholder, { width: cardImgW, height: cardImgH }]}>

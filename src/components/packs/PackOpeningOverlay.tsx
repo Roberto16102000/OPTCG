@@ -570,6 +570,7 @@ function PulledCardFace({ pulled, width, height, glow, compact }: PulledCardFace
         <CardImage
           uri={imageUri}
           fallbackUri={pulled.card.images?.small || pulled.card.images?.large}
+          cardId={pulled.card.id}
           width={width}
           height={height}
           recyclingKey={pulled.card.id}
