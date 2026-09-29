@@ -448,6 +448,7 @@ function PossibleCards({
                   height={tileHeight}
                   priority="low"
                   recyclingKey={card.id}
+                  cardId={card.id}
                 />
               ) : (
                 <View style={[styles.oddsPlaceholder, { width: tileWidth, height: tileHeight }]}>

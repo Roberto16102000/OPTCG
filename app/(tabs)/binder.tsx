@@ -668,6 +668,7 @@ export default function BinderScreen() {
                       height={slotHeight}
                       priority="low"
                       recyclingKey={card.id}
+                      cardId={card.id}
                     />
                   ) : (
                     <Text style={styles.slotPlus}>+</Text>
@@ -718,6 +719,7 @@ export default function BinderScreen() {
                     width={slotWidth}
                     height={slotHeight}
                     recyclingKey={`ghost-${c.id}`}
+                    cardId={c.id}
                   />
                 ) : null;
               })()}

@@ -301,6 +301,7 @@ export function CardPickerModal({
                             height={tileHeight}
                             priority="low"
                             recyclingKey={item.id}
+                            cardId={item.id}
                           />
                         ) : (
                           <View
@@ -418,6 +419,7 @@ export function CardPickerModal({
                             height={42}
                             priority="low"
                             recyclingKey={`sel-${card.id}`}
+                            cardId={card.id}
                           />
                         ) : null}
                         <View style={styles.selectedInfo}>

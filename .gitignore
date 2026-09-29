@@ -53,3 +53,6 @@ public/card-images/
 
 # Capturas de check:visual
 .responsive-shots/
+
+# Mockups locales de revisión, no van al repo
+mockup-*.html

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { mirrorProxyUrl } from '../utils/cards';
 import { resolveDisplayImageUri } from '../utils/imageLoading';
+import { getCardThumbUri } from '../utils/cardThumbs';
 
 interface CardImageProps {
   uri: string;
@@ -15,6 +16,12 @@ interface CardImageProps {
   recyclingKey?: string;
   /** URL remota de respaldo si la local (/card-images/) falla en web. */
   fallbackUri?: string;
+  /**
+   * Id de la carta. Con el, y si se pinta pequeña, se usa la miniatura propia
+   * en vez de pasar por el proxy: es lo que aligera las rejillas, donde se
+   * piden 60 imagenes de golpe.
+   */
+  cardId?: string;
 }
 
 /** Card image with disk cache (native + web) and optional wsrv proxy on web. */
@@ -28,6 +35,7 @@ export function CardImage({
   priority = 'normal',
   recyclingKey,
   fallbackUri,
+  cardId,
 }: CardImageProps) {
   /** Cual de los candidatos se esta intentando; al agotarlos, el marcador. */
   const [intento, setIntento] = useState(0);
@@ -51,14 +59,19 @@ export function CardImage({
     dejaba la carta en el marcador para siempre, sin reintentar.
   */
   const candidatos = useMemo(() => {
-    const lista: string[] = [primaryUri];
+    const lista: string[] = [];
+    // La miniatura va primero cuando la carta se pinta pequeña; si no existe,
+    // el `onError` pasa al siguiente candidato sin que se note.
+    const thumb = getCardThumbUri(cardId, width);
+    if (thumb) lista.push(thumb);
+    lista.push(primaryUri);
     if (remoteFallbackUri && remoteFallbackUri !== primaryUri) lista.push(remoteFallbackUri);
     for (const u of [...lista]) {
       const espejo = mirrorProxyUrl(u);
       if (espejo && !lista.includes(espejo)) lista.push(espejo);
     }
     return lista;
-  }, [primaryUri, remoteFallbackUri]);
+  }, [primaryUri, remoteFallbackUri, cardId, width]);
 
   const displayUri = candidatos[intento];
   const failed = intento >= candidatos.length;

@@ -491,13 +491,16 @@ export default function CatalogScreen() {
 
     (items: OnePieceCard[]) => {
 
-      const uris = items
+      // Los codigos van en paralelo a las URLs para que la precarga pida la
+      // miniatura propia, la misma que va a pintar el grid.
+      const visibles = items.filter((c) => Boolean(getDisplayImageUri(c)));
 
-        .map((c) => getDisplayImageUri(c))
-
-        .filter((u): u is string => Boolean(u));
-
-      void prefetchImageUris(uris, tileSize.width, tileSize.height);
+      void prefetchImageUris(
+        visibles.map((c) => getDisplayImageUri(c) as string),
+        tileSize.width,
+        tileSize.height,
+        visibles.map((c) => c.id)
+      );
 
     },
 

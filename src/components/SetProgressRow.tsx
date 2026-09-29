@@ -156,6 +156,7 @@ export function SetProgressRow({
                     height={slotHeight}
                     priority="low"
                     recyclingKey={card.id}
+                    cardId={card.id}
                   />
                 ) : (
                   <Text style={styles.slotNumber}>{cardNumber(card.code)}</Text>
