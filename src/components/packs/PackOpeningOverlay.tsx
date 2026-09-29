@@ -22,7 +22,8 @@ import { BoosterArt } from './BoosterArt';
 import type { PulledCard } from '../../utils/packs';
 import { CardImage } from '../CardImage';
 
-const CARD_ASPECT = 5 / 7;
+/** Proporción real del escaneo de una carta: 600x838. */
+const CARD_ASPECT = 600 / 838;
 const REVEAL_IN_MS = 320;
 const REVEAL_OUT_MS = 260;
 
@@ -85,8 +86,15 @@ export function PackOpeningOverlay({
   const [phase, setPhase] = useState<Phase>('sealed');
   const [index, setIndex] = useState(0);
 
-  const cardHeight = Math.min(height * 0.62, 460);
-  const cardWidth = Math.min(cardHeight * CARD_ASPECT, width * 0.78);
+  /*
+    El alto sale del ancho, no al reves. Antes se fijaba el alto y el ancho se
+    recortaba por pantalla, asi que en movil el recuadro quedaba mas estrecho
+    de lo que le toca -0,610 frente a 0,716- y la carta se veia con 34 px de
+    franja blanca arriba y abajo. Calculandolo asi, la imagen llena el marco.
+  */
+  const maxCardHeight = Math.min(height * 0.62, 460);
+  const cardWidth = Math.min(maxCardHeight * CARD_ASPECT, width * 0.78);
+  const cardHeight = Math.round(cardWidth / CARD_ASPECT);
   const boosterUri = getBoosterImageUri(packId);
   // Con arte real el marco toma la proporción del sobre; sin él, la de una carta.
   const wrapperHeight = cardHeight;
