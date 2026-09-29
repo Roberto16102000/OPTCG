@@ -616,7 +616,17 @@ export default function BinderScreen() {
                   const { x, y, width: w, height: h } = e.nativeEvent.layout;
                   slotRects.current[index] = { x, y, w, h };
                 }}
-                style={{ width: slotWidth, height: slotHeight }}
+                style={[
+                  { width: slotWidth, height: slotHeight },
+                  /*
+                    Sin esto el arrastre no funciona con el dedo: el navegador
+                    entiende el gesto como scroll, se lo queda y dispara
+                    `pointercancel`, que aborta el movimiento. Solo se aplica a
+                    los huecos con carta, para poder seguir desplazando la
+                    pagina desde los vacios y desde el resto de la pantalla.
+                  */
+                  cardId ? ({ touchAction: 'none' } as object) : null,
+                ]}
               >
                 <Pressable
                   onPress={() => {
