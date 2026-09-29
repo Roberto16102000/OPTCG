@@ -24,6 +24,12 @@ import { hasBoosterArt } from '../../src/utils/boosterImages';
 import { buildPacks, buildPromoPack, PITY_THRESHOLD, rollPack, type PulledCard } from '../../src/utils/packs';
 import { getRarityBadgeColors, getRarityBadgeLabel } from '../../src/utils/rarity';
 
+/** Tamaño de referencia de la ficha: decide cuántas caben, no su ancho final. */
+const ODDS_TILE = 80;
+/** Mínimo por fila: con tres sobraba sitio a la derecha. */
+const ODDS_MIN_COLUMNS = 4;
+const ODDS_GAP = spacing.xs;
+
 /** Cartas por página en la lista de cartas posibles. */
 const POSSIBLE_PAGE_SIZE = 60;
 
@@ -366,6 +372,21 @@ function PossibleCards({
   ownedIds: Record<string, unknown>;
 }) {
   const { getDisplayImageUri } = useImageRegion();
+  /** Ancho real de la rejilla; las fichas se reparten sobre el. */
+  const [gridWidth, setGridWidth] = useState(0);
+
+  /*
+    Igual que la rejilla de la coleccion: la ficha era fija en 80 px y la fila
+    se quedaba en tres, dejando hueco a la derecha. Ahora se calcula, con
+    cuatro por fila como minimo y el ancho repartido exacto.
+  */
+  const columns = gridWidth
+    ? Math.max(ODDS_MIN_COLUMNS, Math.round((gridWidth + ODDS_GAP) / (ODDS_TILE + ODDS_GAP)))
+    : ODDS_MIN_COLUMNS;
+  const tileWidth = gridWidth
+    ? Math.floor((gridWidth - ODDS_GAP * (columns - 1)) / columns)
+    : ODDS_TILE;
+  const tileHeight = Math.round(tileWidth * 1.4);
 
   // El de promos reparte de todo su fondo; los boosters, de su numeración
   // base, que es su lista de comprobación.
@@ -398,25 +419,38 @@ function PossibleCards({
           onPageChange={setPage}
         />
       ) : null}
-      <View style={styles.oddsGrid}>
+      <View
+        style={styles.oddsGrid}
+        onLayout={(e) => {
+          const w = Math.floor(e.nativeEvent.layout.width);
+          if (w > 0 && w !== gridWidth) setGridWidth(w);
+        }}
+      >
         {pageCards.map((card) => {
           const owned = Boolean(ownedIds[card.id]);
           const uri = getDisplayImageUri(card);
           const rarityLabel = getRarityBadgeLabel(card.rarity);
           const badgeColors = getRarityBadgeColors(card.rarity);
           return (
-            <View key={card.id} style={[styles.oddsItem, !owned && styles.oddsItemMissing]}>
+            <View
+              key={card.id}
+              style={[
+                styles.oddsItem,
+                { width: tileWidth, height: tileHeight },
+                !owned && styles.oddsItemMissing,
+              ]}
+            >
               {uri ? (
                 <CardImage
                   uri={uri}
                   fallbackUri={card.images?.small || card.images?.large}
-                  width={80}
-                  height={112}
+                  width={tileWidth}
+                  height={tileHeight}
                   priority="low"
                   recyclingKey={card.id}
                 />
               ) : (
-                <View style={styles.oddsPlaceholder}>
+                <View style={[styles.oddsPlaceholder, { width: tileWidth, height: tileHeight }]}>
                   <Text>🃏</Text>
                 </View>
               )}
@@ -569,7 +603,7 @@ const styles = StyleSheet.create({
   oddsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: ODDS_GAP,
   },
   oddsItem: {
     borderRadius: radii.sm,
@@ -579,8 +613,6 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   oddsPlaceholder: {
-    width: 80,
-    height: 112,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.gridPanel,
