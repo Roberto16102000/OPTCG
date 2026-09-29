@@ -63,14 +63,19 @@ export function CollectionStatsPanel({
       .slice(0, 3);
   }, [collectionList]);
 
+  const Contenedor = compact ? View : ScrollView;
+
   return (
     <View style={[styles.panel, compact && styles.panelCompact]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-        // Apilado en movil el panel no debe capturar el gesto: lo hace la
-        // pantalla entera, o quedan varias ventanitas que no dejan bajar.
-        scrollEnabled={!compact}
+      {/*
+        Mismo caso que en el panel de filtros: apilado no se usa ScrollView,
+        porque `scrollEnabled={false}` acaba en `touch-action: none` y bloquea
+        el desplazamiento de la pantalla en vez de cederlo.
+      */}
+      <Contenedor
+        {...(compact
+          ? { style: styles.scroll }
+          : { showsVerticalScrollIndicator: false, contentContainerStyle: styles.scroll })}
       >
         <Widget title="Collection Stats">
           <StatRow icon="🃏" label="Total Cards" value={String(totalCopies)} />
@@ -131,7 +136,7 @@ export function CollectionStatsPanel({
             })}
           </Widget>
         ) : null}
-      </ScrollView>
+      </Contenedor>
     </View>
   );
 }

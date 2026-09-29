@@ -104,6 +104,8 @@ export function CollectionFiltersPanel({
   onClearFilters,
   compact,
 }: CollectionFiltersPanelProps) {
+  const Contenedor = compact ? View : ScrollView;
+
   return (
     <View style={[styles.panel, compact && styles.panelCompact]}>
       <View style={styles.panelHeader}>
@@ -115,12 +117,16 @@ export function CollectionFiltersPanel({
         ) : null}
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-        // Apilado en movil el panel no debe capturar el gesto: lo hace la
-        // pantalla entera, o quedan varias ventanitas que no dejan bajar.
-        scrollEnabled={!compact}
+      {/*
+        Apilado en movil no se usa ScrollView: `scrollEnabled={false}` se
+        traduce en web a `touch-action: none`, que no cede el gesto al padre
+        sino que lo mata, y la pantalla se quedaba clavada en los filtros.
+        Con una View normal el contenido fluye y desplaza la pagina entera.
+      */}
+      <Contenedor
+        {...(compact
+          ? { style: styles.scroll }
+          : { showsVerticalScrollIndicator: false, contentContainerStyle: styles.scroll })}
       >
         <View style={styles.searchWrap}>
           <Text style={styles.searchIcon}>🔍</Text>
@@ -227,7 +233,7 @@ export function CollectionFiltersPanel({
             );
           })}
         </FilterSection>
-      </ScrollView>
+      </Contenedor>
     </View>
   );
 }
