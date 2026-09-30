@@ -6,11 +6,9 @@
  * originales, que no admite ningún hosting: se apartan durante la exportación
  * y se devuelven al terminar.
  *
- * Lo que SÍ se publica son las dos copias que genera el proyecto:
- * `card-thumbs` -300 px, para las rejillas- y `card-hd` -900 px, para la ficha
- * y la apertura de sobres-. Entre las dos son unos 695 MB, que no caben en
- * Vercel pero sí en Cloudflare, donde las peticiones a archivos estáticos son
- * gratis e ilimitadas.
+ * Lo que SÍ se publica es `card-hd`: las 5.775 cartas a 900 px que genera
+ * `npm run build:hd`, unos 563 MB. En Cloudflare las peticiones a archivos
+ * estáticos son gratis e ilimitadas y guardarlos no cuesta.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';

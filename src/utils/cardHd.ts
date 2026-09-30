@@ -6,9 +6,9 @@
  * A 900 px cubre los 512 que pide la ficha incluso en pantalla densa, que los
  * pinta al doble.
  *
- * Las genera `npm run build:hd` en `public/card-hd/`. Pesan unos 580 MB, que
- * no caben en Vercel —250 MB por despliegue— pero sí en Cloudflare, donde las
- * peticiones a archivos estáticos son gratis e ilimitadas.
+ * Las genera `npm run build:hd` en `public/card-hd/`. Pesan unos 580 MB, y se
+ * publican tal cual: en Cloudflare las peticiones a archivos estáticos son
+ * gratis e ilimitadas y guardarlos no cuesta.
  *
  * Es el unico juego: las rejillas tiran tambien de estas. Cuesta peso -una
  * pagina de catalogo son 60 imagenes- pero el navegador las reduce al pintar y

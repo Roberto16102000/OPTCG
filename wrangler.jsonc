@@ -2,10 +2,9 @@
   // Publicación en Cloudflare Workers con archivos estáticos.
   //
   // Aquí viven las cartas en grande: 5.775 imágenes de 900 px que pesan unos
-  // 555 MB. No caben en Vercel -250 MB por despliegue- pero sí aquí, donde
-  // las peticiones a archivos estáticos son gratis e ilimitadas y guardarlos
-  // no cuesta. Los límites que sí aplican son 20.000 archivos por versión
-  // -vamos por 11.638- y 25 MiB por archivo, que ninguna se acerca.
+  // 563 MB. Las peticiones a archivos estáticos son gratis e ilimitadas y
+  // guardarlos no cuesta. Los límites que sí aplican son 20.000 archivos por
+  // versión -el dist son 5.880- y 25 MiB por archivo, que ninguna se acerca.
   //
   // `single-page-application` es imprescindible: expo-router resuelve las
   // rutas en el navegador, así que entrar directo a /packs o /binder tiene que
