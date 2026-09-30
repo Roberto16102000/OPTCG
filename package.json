@@ -49,12 +49,11 @@
     "check:responsive": "node scripts/check-responsive.mjs",
     "check:visual": "node scripts/check-responsive-visual.mjs",
     "build": "node scripts/build-pwa.js",
-    "build:thumbs": "node scripts/build-thumbs.js",
     "build:pwa": "node scripts/build-pwa.js",
     "build:crops": "node scripts/build-crop-manifest.js",
     "check:framing": "node scripts/check-card-framing.mjs",
     "check:gap": "node scripts/check-card-gap.mjs",
-    "build:hd": "node scripts/build-thumbs.js --hd"
+    "build:hd": "node scripts/build-card-images.js"
   },
   "type": "module",
   "private": true

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { mirrorProxyUrl } from '../utils/cards';
 import { resolveDisplayImageUri } from '../utils/imageLoading';
-import { getCardThumbPath, getCardThumbUri } from '../utils/cardThumbs';
 import { getCardHdUri } from '../utils/cardHd';
 
 interface CardImageProps {
@@ -66,12 +65,10 @@ export function CardImage({
     const lista: string[] = [];
     // La miniatura va primero cuando la carta se pinta pequeña; si no existe,
     // el `onError` pasa al siguiente candidato sin que se note.
-    const thumb = getCardThumbUri(cardId, width);
-    if (thumb) lista.push(thumb);
-    // A tamaño grande -ficha, apertura de sobres- la copia propia va antes que
-    // el proxy. Si falta, el `onError` cae al proxy sin que se note.
-    const hd = getCardHdUri(cardId, width);
-    if (hd) lista.push(hd);
+    // La copia propia va antes que el proxy. Si falta, el `onError` cae al
+    // proxy sin que se note.
+    const propia = getCardHdUri(cardId);
+    if (propia) lista.push(propia);
     lista.push(primaryUri);
     if (remoteFallbackUri && remoteFallbackUri !== primaryUri) lista.push(remoteFallbackUri);
     for (const u of [...lista]) {
@@ -84,21 +81,6 @@ export function CardImage({
   const displayUri = candidatos[intento];
   const failed = intento >= candidatos.length;
 
-  /*
-    Primer fotograma: cuando lo que toca pintar NO es ya la miniatura -ficha de
-    carta, apertura de sobres-, se usa la miniatura de relleno mientras llega.
-    La rejilla acaba de descargarla, asi que entra sin red y sin espera; la
-    nitida la sustituye por encima con la transicion.
-
-    `placeholderContentFit` tiene que ir igual que `contentFit`: el valor por
-    defecto del relleno es `scale-down` y el de la imagen `cover`, y esa
-    diferencia hace que al cambiar se vea un salto.
-  */
-  const placeholderUri = useMemo(() => {
-    const thumb = getCardThumbPath(cardId);
-    if (!thumb || thumb === displayUri) return undefined;
-    return thumb;
-  }, [cardId, displayUri]);
 
   useEffect(() => {
     setIntento(0);
@@ -118,8 +100,6 @@ export function CardImage({
           contentPosition={contentPosition}
           cachePolicy="memory-disk"
           priority={priority}
-          placeholder={placeholderUri ? { uri: placeholderUri } : undefined}
-          placeholderContentFit={contentFit}
           recyclingKey={recyclingKey ?? displayUri}
           transition={120}
           onError={handleError}

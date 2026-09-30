@@ -20,7 +20,7 @@ import sharp from 'sharp';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
-const THUMBS = path.join(ROOT, 'public', 'card-thumbs');
+const THUMBS = path.join(ROOT, 'public', 'card-hd');
 const RECORTES = path.join(ROOT, 'assets', 'data', 'card-crop-manifest.json');
 
 const FORMA_CARTA = 600 / 838;
@@ -41,10 +41,12 @@ const CONCURRENCIA = 24;
  * recorte-, es que la imagen de origen ya esta cortada asi. Recortar mas se
  * comeria carta y rellenar devolveria las bandas que se estan quitando.
  *
- * Se listan una a una a proposito: si aparece una cuarta, la comprobacion
- * falla y hay que mirarla, en vez de que se cuele en silencio.
+ * Se listan una a una a proposito: si aparece otra, la comprobacion falla y
+ * hay que mirarla, en vez de que se cuele en silencio. `OP09-068_p1` entro asi:
+ * su original mide 736x1000 -relacion 0,736- y a 300 px se quedaba justo
+ * dentro de la tolerancia; al pasar a 900 px la comprobacion la saco.
  */
-const CONOCIDAS = new Set(['OP14-027_p2', 'ST29-008_p2', 'EB04-030_p1']);
+const CONOCIDAS = new Set(['OP14-027_p2', 'ST29-008_p2', 'EB04-030_p1', 'OP09-068_p1']);
 
 let fallos = 0;
 const aviso = (msg) => {
@@ -54,7 +56,7 @@ const aviso = (msg) => {
 
 async function main() {
   if (!fs.existsSync(THUMBS)) {
-    console.error('No están las miniaturas. Ejecuta antes: npm run build:thumbs');
+    console.error('No están las cartas. Ejecuta antes: npm run build:hd');
     process.exit(1);
   }
 
@@ -83,7 +85,7 @@ async function main() {
     );
   }
 
-  console.log(`Encuadre · ${archivos.length} miniaturas, ${Object.keys(recortes).length} con recorte\n`);
+  console.log(`Encuadre · ${archivos.length} cartas, ${Object.keys(recortes).length} con recorte\n`);
 
   const conocidas = desencuadradas.filter((d) => CONOCIDAS.has(d.id));
   desencuadradas = desencuadradas.filter((d) => !CONOCIDAS.has(d.id));
@@ -94,14 +96,14 @@ async function main() {
   desencuadradas.sort((a, b) => b.desvio - a.desvio);
   if (desencuadradas.length) {
     aviso(
-      `${desencuadradas.length} miniatura(s) sin forma de carta (${FORMA_CARTA.toFixed(3)} ± ${TOLERANCIA}) · ` +
+      `${desencuadradas.length} carta(s) sin forma de carta (${FORMA_CARTA.toFixed(3)} ± ${TOLERANCIA}) · ` +
         desencuadradas
           .slice(0, 6)
           .map((d) => `${d.id} ${d.forma}=${d.relacion}`)
           .join(', ')
     );
   } else {
-    console.log('  ✓ todas las miniaturas tienen forma de carta');
+    console.log('  ✓ todas las cartas tienen forma de carta');
   }
 
   // El recorte tiene que dejar la imagen con forma de carta; si no, la medida

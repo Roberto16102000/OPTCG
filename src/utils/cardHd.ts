@@ -10,24 +10,19 @@
  * no caben en Vercel —250 MB por despliegue— pero sí en Cloudflare, donde las
  * peticiones a archivos estáticos son gratis e ilimitadas.
  *
- * Para las rejillas está [[cardThumbs]], que es otro juego mucho más ligero:
- * ahí se piden 60 de golpe y manda el peso, no la calidad.
+ * Es el unico juego: las rejillas tiran tambien de estas. Cuesta peso -una
+ * pagina de catalogo son 60 imagenes- pero el navegador las reduce al pintar y
+ * la carta se ve igual de nitida en todas partes.
  */
 import { Platform } from 'react-native';
 import { resolveWebStaticPath } from './localImages';
-import { THUMB_MAX_WIDTH } from './cardThumbs';
 
 /** Ancho con el que se generaron. */
 export const HD_WIDTH = 900;
 
-/**
- * Ruta de la copia grande, o `null` si a ese tamaño no toca.
- *
- * Por debajo del umbral de miniatura no se usa: una rejilla que pidiera estas
- * descargaría 60 imágenes de 100 KB en vez de 60 de 25 KB.
- */
-export function getCardHdUri(cardId: string | undefined, width: number): string | null {
+/** Ruta de la carta, o `null` si no hay id o no estamos en web. */
+export function getCardHdUri(cardId: string | undefined): string | null {
   if (Platform.OS !== 'web') return null;
-  if (!cardId || width <= THUMB_MAX_WIDTH) return null;
+  if (!cardId) return null;
   return resolveWebStaticPath(`/card-hd/${encodeURIComponent(cardId)}.webp`);
 }
