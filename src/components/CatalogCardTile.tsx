@@ -47,6 +47,7 @@ function CatalogCardTileInner({
         >
           {imageUri ? (
             <CardImage
+              lazy
               uri={imageUri}
               fallbackUri={card.images?.small || card.images?.large}
               width={width}

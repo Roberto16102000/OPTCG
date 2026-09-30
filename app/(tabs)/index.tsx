@@ -109,6 +109,14 @@ import { CATALOG_THUMB, prefetchImageUris } from '../../src/utils/imageLoading';
 
 
 
+/**
+ * Cuantas cartas se precargan al entrar.
+ *
+ * Doce cubre las dos o tres primeras filas en cualquier ancho, que es lo que
+ * se ve sin desplazar. Las demas entran solas segun se baja.
+ */
+const PRECARGA_INICIAL = 12;
+
 /** Ancho de la columna de filtros; se descuenta del espacio del grid. */
 const FILTERS_COLUMN_WIDTH = 264;
 
@@ -491,9 +499,18 @@ export default function CatalogScreen() {
 
     (items: OnePieceCard[]) => {
 
-      // Los codigos van en paralelo a las URLs para que la precarga pida la
-      // miniatura propia, la misma que va a pintar el grid.
-      const visibles = items.filter((c) => Boolean(getDisplayImageUri(c)));
+      /*
+        Solo la primera pantalla. El resto de la pagina lo pide cada carta al
+        acercarse, asi que precargarlas todas aqui anulaba esa espera: se
+        bajaban las 60 igual -4,9 MB, 36 s con datos flojos- aunque en un movil
+        se vean seis.
+
+        Los codigos van en paralelo a las URLs para que se precargue la misma
+        imagen que va a pintar la rejilla, no otra.
+      */
+      const visibles = items
+        .filter((c) => Boolean(getDisplayImageUri(c)))
+        .slice(0, PRECARGA_INICIAL);
 
       void prefetchImageUris(
         visibles.map((c) => getDisplayImageUri(c) as string),

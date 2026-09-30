@@ -11,15 +11,29 @@
  */
 import { chromium } from 'playwright';
 
-const BASE = process.argv[2];
-const IDS = (process.argv[3] || '').split(',').filter(Boolean);
+/*
+  Igual que los otros arneses: `APP_URL` manda y si no se asume el servidor de
+  desarrollo. Antes solo leia argv y `npm run check:gap` reventaba, porque npm
+  no pasa argumentos si no los pides con `--`.
+*/
+const BASE = process.env.APP_URL || process.argv[2] || 'http://localhost:8081';
+const IDS = (process.env.CHECK_IDS || process.argv[3] || 'OP01-046,OP01-001')
+  .split(',')
+  .filter(Boolean);
 
 const navegador = await chromium.launch({ headless: true });
 const ctx = await navegador.newContext({ viewport: { width: 420, height: 880 }, serviceWorkers: 'block' });
 const page = await ctx.newPage();
 
 await page.goto(BASE, { waitUntil: 'load', timeout: 90000 });
-await page.waitForFunction(() => document.querySelectorAll('img').length > 10, { timeout: 90000 });
+/*
+  Con la carga diferida solo se pintan las cartas que se ven, asi que esperar a
+  «mas de diez imagenes» ya no se cumple nunca en un movil: son seis.
+*/
+await page.waitForFunction(
+  () => [...document.querySelectorAll('img')].filter((i) => i.getBoundingClientRect().width > 100).length >= 4,
+  { timeout: 90000 }
+);
 await page.waitForTimeout(3500);
 
 /** Hueco sin usar dentro de la caja de la imagen, en porcentaje de cada lado. */
@@ -49,18 +63,48 @@ function medirHueco() {
 
 let fallos = 0;
 for (const id of IDS) {
-  // Buscar la carta por su código y abrirla.
-  const abierta = await page.evaluate((codigo) => {
-    for (const el of document.querySelectorAll('img')) {
-      const src = el.currentSrc || el.src;
-      if (src.includes(encodeURIComponent(codigo)) || src.includes(codigo)) {
-        el.closest('[role="button"], button, div')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        return true;
+  /*
+    Buscar la carta y abrirla.
+
+    Hay que bajar buscandola: con la carga diferida una carta que no se ha
+    visto todavia no existe como `img` en el DOM, asi que mirar solo lo que hay
+    al entrar solo encontraba las seis primeras.
+  */
+  const intentar = (codigo) =>
+    page.evaluate((c) => {
+      for (const el of document.querySelectorAll('img')) {
+        const src = el.currentSrc || el.src;
+        if (src.includes(encodeURIComponent(c)) || src.includes(c)) {
+          el.closest('[role="button"], button, div')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+          el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+          return true;
+        }
       }
+      return false;
+    }, codigo);
+
+  let abierta = await intentar(id);
+  if (!abierta) {
+    const hayLista = await page.evaluate(() => {
+      const cand = [...document.querySelectorAll('div')].filter((el) => {
+        const s = getComputedStyle(el);
+        return /auto|scroll/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 50;
+      });
+      const el = cand.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+      if (!el) return false;
+      el.dataset.lista = '1';
+      return true;
+    });
+
+    for (let paso = 1; hayLista && paso <= 12 && !abierta; paso++) {
+      await page.evaluate((f) => {
+        const el = document.querySelector('[data-lista]');
+        el.scrollTop = el.scrollHeight * f;
+      }, paso / 12);
+      await page.waitForTimeout(1200);
+      abierta = await intentar(id);
     }
-    return false;
-  }, id);
+  }
 
   if (!abierta) {
     // Saltarse una carta no puede contar como aprobado: una prueba que no mide

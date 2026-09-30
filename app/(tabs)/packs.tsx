@@ -442,6 +442,7 @@ function PossibleCards({
             >
               {uri ? (
                 <CardImage
+                  lazy
                   uri={uri}
                   fallbackUri={card.images?.small || card.images?.large}
                   width={tileWidth}

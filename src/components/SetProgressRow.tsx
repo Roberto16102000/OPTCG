@@ -89,6 +89,7 @@ export function SetProgressRow({
             <BoosterArt uri={boosterUri} height={THUMB_HEIGHT} crop={getArtCrop(artKey)} />
           ) : coverUri ? (
             <CardImage
+              lazy
               uri={coverUri}
               fallbackUri={cover?.images?.small}
               cardId={cover?.id}
@@ -151,6 +152,7 @@ export function SetProgressRow({
               >
                 {has && uri ? (
                   <CardImage
+                    lazy
                     uri={uri}
                     fallbackUri={card.images?.small}
                     width={slotWidth}

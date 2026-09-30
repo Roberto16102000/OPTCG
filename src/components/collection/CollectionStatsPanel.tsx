@@ -90,6 +90,7 @@ export function CollectionStatsPanel({
           <Widget title="Most Valuable Card">
             <View style={styles.featuredCard}>
               <CardImage
+                lazy
                 uri={getDisplayImageUri(mostValuable.entry.card) ?? mostValuable.entry.card.images.small}
                 fallbackUri={mostValuable.entry.card.images?.small}
                 cardId={mostValuable.entry.card.id}
@@ -116,6 +117,7 @@ export function CollectionStatsPanel({
               return (
                 <View key={entry.card.id} style={styles.recentRow}>
                   <CardImage
+                    lazy
                     uri={getDisplayImageUri(entry.card) ?? entry.card.images.small}
                     fallbackUri={entry.card.images?.small}
                     cardId={entry.card.id}

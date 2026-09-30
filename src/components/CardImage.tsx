@@ -4,6 +4,7 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-na
 import { mirrorProxyUrl } from '../utils/cards';
 import { resolveDisplayImageUri } from '../utils/imageLoading';
 import { getCardHdUri } from '../utils/cardHd';
+import { useNearViewport } from '../hooks/useNearViewport';
 
 interface CardImageProps {
   uri: string;
@@ -24,6 +25,14 @@ interface CardImageProps {
   cardId?: string;
   /** Avisa cuando la imagen definitiva ya esta en pantalla. */
   onLoaded?: () => void;
+  /**
+   * No descargar hasta que la carta se acerque a la pantalla.
+   *
+   * Para las rejillas, donde se pintan 60 de golpe y solo se ven unas pocas.
+   * En la ficha y en la apertura de sobres NO se usa: ahi la carta es el
+   * motivo de estar mirando, y esperar a que entre en pantalla la retrasaria.
+   */
+  lazy?: boolean;
 }
 
 /** Card image with disk cache (native + web) and optional wsrv proxy on web. */
@@ -39,7 +48,10 @@ export function CardImage({
   fallbackUri,
   cardId,
   onLoaded,
+  lazy = false,
 }: CardImageProps) {
+  const { ref: refVisible, visible } = useNearViewport<View>();
+  const cargar = !lazy || visible;
   /** Cual de los candidatos se esta intentando; al agotarlos, el marcador. */
   const [intento, setIntento] = useState(0);
 
@@ -91,8 +103,11 @@ export function CardImage({
   };
 
   return (
-    <View style={[styles.wrap, { width, height }, style]}>
-      {!failed ? (
+    <View ref={lazy ? refVisible : undefined} style={[styles.wrap, { width, height }, style]}>
+      {!cargar ? (
+        // Hueco del tamaño exacto, para que la rejilla no se mueva al llegar.
+        <View style={{ width, height }} />
+      ) : !failed ? (
         <Image
           source={{ uri: displayUri }}
           style={{ width, height }}

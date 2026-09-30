@@ -295,6 +295,7 @@ export function CardPickerModal({
                       >
                         {uri ? (
                           <CardImage
+                            lazy
                             uri={uri}
                             fallbackUri={item.images?.small}
                             width={tileWidth}
@@ -413,6 +414,7 @@ export function CardPickerModal({
                       <View key={card.id} style={styles.selectedRow}>
                         {uri ? (
                           <CardImage
+                            lazy
                             uri={uri}
                             fallbackUri={card.images?.small}
                             width={30}
