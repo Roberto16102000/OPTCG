@@ -6,6 +6,7 @@
  *   npm run build:thumbs -- --limit=20   solo las primeras, para probar
  *   npm run build:thumbs -- --force      rehace las que ya existan
  *   npm run build:thumbs -- --force --solo-recortes   solo las que se recortan
+ *   npm run build:hd                     el juego grande, para la ficha
  *
  * Por qué existe: las rejillas piden 60 imágenes de golpe y hoy salen de un
  * proxy externo. Una copia propia a 240 px pesa ~16 KB en vez de ~314 KB del
@@ -22,20 +23,35 @@ import sharp from 'sharp';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(__dirname, '..', 'public', 'card-images');
-const OUT = path.join(__dirname, '..', 'public', 'card-thumbs');
 const RECORTES = path.join(__dirname, '..', 'assets', 'data', 'card-crop-manifest.json');
+
+/**
+ * Dos juegos con el mismo molde.
+ *
+ * `thumbs` es para las rejillas, donde se piden 60 de golpe y manda el peso.
+ * `hd` es para la ficha y la apertura de sobres, donde se ve una carta cada vez
+ * y manda la calidad: 900 px cubre los 512 que pide la ficha incluso en
+ * pantalla densa, que los pinta al doble.
+ */
+const JUEGOS = {
+  thumbs: { dir: 'card-thumbs', width: 300, quality: 60 },
+  hd: { dir: 'card-hd', width: 900, quality: 75 },
+};
+
+const JUEGO = process.argv.includes('--hd') ? JUEGOS.hd : JUEGOS.thumbs;
+const OUT = path.join(__dirname, '..', 'public', JUEGO.dir);
 
 /**
  * Ancho de la miniatura. La ficha mas grande de una rejilla es la del catalogo,
  * de unos 179 px, y hoy ya se le pide al proxy 286 px (ancho x 1,6). A 300 px
  * la miniatura iguala esa calidad en vez de empeorarla.
  */
-const WIDTH = 300;
+const WIDTH = JUEGO.width;
 /**
  * Calidad y esfuerzo del codificador. El esfuerzo 6 solo ahorra un 3 % frente
  * al 4 y multiplica el tiempo por varias veces: con 5.775 imagenes no compensa.
  */
-const QUALITY = 60;
+const QUALITY = JUEGO.quality;
 const EFFORT = 4;
 /** Cuantas se codifican a la vez. `sharp` trabaja fuera del hilo principal. */
 const CONCURRENCIA = 8;
@@ -115,7 +131,7 @@ async function main() {
   }
 
   const mb = (v) => (v / 1024 / 1024).toFixed(1);
-  console.log(`miniaturas: ${hechas} nuevas, ${saltadas} ya estaban, ${fallos} fallos`);
+  console.log(`${JUEGO.dir} (${WIDTH}px q${QUALITY}): ${hechas} nuevas, ${saltadas} ya estaban, ${fallos} fallos`);
   console.log(`peso total: ${mb(bytes)} MB  (${(bytes / Math.max(1, hechas + saltadas) / 1024).toFixed(1)} KB de media)`);
 }
 

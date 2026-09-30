@@ -53,7 +53,8 @@
     "build:pwa": "node scripts/build-pwa.js",
     "build:crops": "node scripts/build-crop-manifest.js",
     "check:framing": "node scripts/check-card-framing.mjs",
-    "check:gap": "node scripts/check-card-gap.mjs"
+    "check:gap": "node scripts/check-card-gap.mjs",
+    "build:hd": "node scripts/build-thumbs.js --hd"
   },
   "type": "module",
   "private": true

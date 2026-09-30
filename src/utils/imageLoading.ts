@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { Platform } from 'react-native';
 import { resolveCardImageUrl } from './cards';
 import { getCardCrop } from './cardCrop';
+import { getCardHdUri } from './cardHd';
 import { getCardThumbUri } from './cardThumbs';
 import { isLocalWebImageUri, resolveWebStaticPath } from './localImages';
 
@@ -40,9 +41,12 @@ export async function prefetchImageUris(
 
   uris.forEach((uri, i) => {
     if (!uri) return;
-    const thumb = getCardThumbUri(cardIds?.[i], width);
-    if (thumb) {
-      fuentes.add(thumb);
+    // Lo mismo que va a pintar `CardImage`, en el mismo orden: miniatura para
+    // las rejillas, copia grande para la ficha. Calentar la URL del proxy
+    // mientras se pinta la propia descargaba las dos.
+    const propia = getCardThumbUri(cardIds?.[i], width) ?? getCardHdUri(cardIds?.[i], width);
+    if (propia) {
+      fuentes.add(propia);
       return;
     }
     if (Platform.OS === 'web' && isLocalWebImageUri(uri)) return;

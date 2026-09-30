@@ -2,11 +2,15 @@
 /**
  * Exporta la versión web instalable.
  *
- * `expo export` copia todo `public/` a `dist/`, y ahí viven 1,7 GB de
- * imágenes de cartas que ningún hosting normal admite. Se apartan durante la
- * exportación y se devuelven al terminar: en el sitio publicado cada carta se
- * pide a la URL oficial, que es a lo que ya cae la app cuando no hay copia
- * local.
+ * `expo export` copia todo `public/` a `dist/`. Ahí viven los 1,7 GB de
+ * originales, que no admite ningún hosting: se apartan durante la exportación
+ * y se devuelven al terminar.
+ *
+ * Lo que SÍ se publica son las dos copias que genera el proyecto:
+ * `card-thumbs` -300 px, para las rejillas- y `card-hd` -900 px, para la ficha
+ * y la apertura de sobres-. Entre las dos son unos 695 MB, que no caben en
+ * Vercel pero sí en Cloudflare, donde las peticiones a archivos estáticos son
+ * gratis e ilimitadas.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';

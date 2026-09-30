@@ -4,6 +4,7 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-na
 import { mirrorProxyUrl } from '../utils/cards';
 import { resolveDisplayImageUri } from '../utils/imageLoading';
 import { getCardThumbPath, getCardThumbUri } from '../utils/cardThumbs';
+import { getCardHdUri } from '../utils/cardHd';
 
 interface CardImageProps {
   uri: string;
@@ -67,6 +68,10 @@ export function CardImage({
     // el `onError` pasa al siguiente candidato sin que se note.
     const thumb = getCardThumbUri(cardId, width);
     if (thumb) lista.push(thumb);
+    // A tamaño grande -ficha, apertura de sobres- la copia propia va antes que
+    // el proxy. Si falta, el `onError` cae al proxy sin que se note.
+    const hd = getCardHdUri(cardId, width);
+    if (hd) lista.push(hd);
     lista.push(primaryUri);
     if (remoteFallbackUri && remoteFallbackUri !== primaryUri) lista.push(remoteFallbackUri);
     for (const u of [...lista]) {
