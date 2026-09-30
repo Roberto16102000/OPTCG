@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import type { CardCrop } from './cardCrop';
 import type { OnePieceCard } from '../types/card';
 import { getLocalWebImageUri } from './localImages';
 
@@ -27,7 +28,8 @@ export function getCardImageUri(
 export function resolveCardImageUrl(
   uri: string,
   width: number,
-  height: number
+  height: number,
+  crop?: CardCrop | null
 ): string {
   if (Platform.OS !== 'web') return uri;
   if (uri.startsWith('/card-images/')) return uri;
@@ -41,7 +43,7 @@ export function resolveCardImageUrl(
   */
   if (uri.includes('tcgplayer-cdn.tcgplayer.com')) return uri;
 
-  const cacheKey = `v5|${uri}|${width}`;
+  const cacheKey = `v7|${uri}|${width}|${crop ? `${crop.x},${crop.y},${crop.width},${crop.height}` : ''}`;
   const cached = resolvedUrlCache.get(cacheKey);
   if (cached) return cached;
 
@@ -58,6 +60,24 @@ export function resolveCardImageUrl(
     output: 'webp',
     q: '70',
   });
+
+  /*
+    Unas 900 cartas traen relleno dentro del archivo y se quedan cortas en su
+    hueco. El proxy sabe recortar con `cx/cy/cw/ch` en pixeles del original, y
+    se le pide lo mismo que se le quito a la miniatura: si una se recortara y
+    la otra no, la carta daria un salto al cambiarse una por otra.
+  */
+  if (crop) {
+    // `precrop` es obligatorio: sin el, wsrv redimensiona primero y aplica el
+    // recorte sobre la imagen ya reducida, asi que unas coordenadas en pixeles
+    // del original recortan de mas. Con w=512 devolvia 485x702 -relacion
+    // 0,691- en vez de los 512x715 -0,716- que tiene que dar.
+    params.set('precrop', 'true');
+    params.set('cx', String(crop.x));
+    params.set('cy', String(crop.y));
+    params.set('cw', String(crop.width));
+    params.set('ch', String(crop.height));
+  }
   const resolved = `${WEB_IMAGE_PROXY}?${params.toString()}`;
   resolvedUrlCache.set(cacheKey, resolved);
   return resolved;

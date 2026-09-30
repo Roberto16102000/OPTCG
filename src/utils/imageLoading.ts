@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { Platform } from 'react-native';
 import { resolveCardImageUrl } from './cards';
+import { getCardCrop } from './cardCrop';
 import { getCardThumbUri } from './cardThumbs';
 import { isLocalWebImageUri, resolveWebStaticPath } from './localImages';
 
@@ -13,11 +14,12 @@ export const DETAIL_IMAGE = { width: 300, height: 417 } as const;
 export function resolveDisplayImageUri(
   uri: string,
   width: number,
-  height: number
+  height: number,
+  cardId?: string
 ): string {
   if (Platform.OS !== 'web') return uri;
   if (isLocalWebImageUri(uri)) return resolveWebStaticPath(uri);
-  return resolveCardImageUrl(uri, width, height);
+  return resolveCardImageUrl(uri, width, height, getCardCrop(cardId));
 }
 
 /**
@@ -44,7 +46,7 @@ export async function prefetchImageUris(
       return;
     }
     if (Platform.OS === 'web' && isLocalWebImageUri(uri)) return;
-    fuentes.add(resolveDisplayImageUri(uri, width, height));
+    fuentes.add(resolveDisplayImageUri(uri, width, height, cardIds?.[i]));
   });
 
   if (!fuentes.size) return;

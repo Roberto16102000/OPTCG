@@ -50,7 +50,10 @@
     "check:visual": "node scripts/check-responsive-visual.mjs",
     "build": "node scripts/build-pwa.js",
     "build:thumbs": "node scripts/build-thumbs.js",
-    "build:pwa": "node scripts/build-pwa.js"
+    "build:pwa": "node scripts/build-pwa.js",
+    "build:crops": "node scripts/build-crop-manifest.js",
+    "check:framing": "node scripts/check-card-framing.mjs",
+    "check:gap": "node scripts/check-card-gap.mjs"
   },
   "type": "module",
   "private": true

@@ -44,14 +44,14 @@ export function CardImage({
   const [intento, setIntento] = useState(0);
 
   const primaryUri = useMemo(
-    () => resolveDisplayImageUri(uri, width, height),
-    [uri, width, height]
+    () => resolveDisplayImageUri(uri, width, height, cardId),
+    [uri, width, height, cardId]
   );
 
   const remoteFallbackUri = useMemo(() => {
     if (!fallbackUri) return undefined;
-    return resolveDisplayImageUri(fallbackUri, width, height);
-  }, [fallbackUri, width, height]);
+    return resolveDisplayImageUri(fallbackUri, width, height, cardId);
+  }, [fallbackUri, width, height, cardId]);
 
   /*
     Cadena de intentos: la principal, luego la remota de respaldo y, por
