@@ -63,6 +63,8 @@ export function isPresaleCard(card: OnePieceCard): boolean {
 }
 
 const BOOSTER_PREFIX = /^(OP|EB|PRB)\d+$/;
+/** Los premium booster se reparten distinto: ver `buildPacks`. */
+const PREMIUM_BOOSTER_ID = /^PRB\d+$/;
 const MIN_CARDS_FOR_BOOSTER = 12;
 const CARDS_PER_BOOSTER = 12;
 
@@ -185,12 +187,32 @@ export function formatPackLabel(id: string): string {
 }
 
 /** Agrupa el catálogo en sobres abribles, ordenados del más reciente al más antiguo. */
+/**
+ * Codigo del premium booster al que pertenece la carta, si es de uno.
+ *
+ * Hace falta porque «THE BEST» es un set de reimpresiones: sus cartas
+ * conservan el codigo original -`OP01-006_p3`, `EB01-006_r1`- y solo una de
+ * las 436 lleva codigo `PRB01-`. Agrupando por el codigo, como el resto, el
+ * sobre se quedaba en una carta y no llegaba al minimo, asi que PRB-01 no
+ * aparecia en el abridor. Lo que si llevan todas es el `[PRB-01]` en el
+ * nombre del set.
+ *
+ * Solo se mira para los PRB. Hacerlo con todos movia 1.491 cartas e inventaba
+ * sobres como `OP14EB04`, que es una etiqueta de promo y no un producto.
+ */
+function premiumBoosterCode(card: OnePieceCard): string | null {
+  const nombre = card.set?.name;
+  if (!nombre) return null;
+  const m = nombre.match(/\[(PRB-\d+)\]/);
+  return m ? m[1].replace('-', '') : null;
+}
+
 export function buildPacks(cards: OnePieceCard[]): PackDefinition[] {
   const groups = new Map<string, OnePieceCard[]>();
 
   for (const card of cards) {
     if (isPresaleCard(card)) continue;
-    const prefix = card.code?.split('-')[0];
+    const prefix = premiumBoosterCode(card) ?? card.code?.split('-')[0];
     if (!prefix || !BOOSTER_PREFIX.test(prefix)) continue;
     const bucket = groups.get(prefix);
     if (bucket) bucket.push(card);
@@ -199,7 +221,13 @@ export function buildPacks(cards: OnePieceCard[]): PackDefinition[] {
 
   const packs: PackDefinition[] = [];
   for (const [id, packCards] of groups) {
-    const baseCards = packCards.filter((card) => card.id === card.code);
+    /*
+      En un premium booster todas las cartas son alternativas, asi que exigir
+      `id === code` dejaba el fondo base vacio y no habia de donde sacar los
+      slots de comun, poco comun y rara.
+    */
+    const esPremium = PREMIUM_BOOSTER_ID.test(id);
+    const baseCards = esPremium ? packCards : packCards.filter((card) => card.id === card.code);
     if (baseCards.length < MIN_CARDS_FOR_BOOSTER) continue;
     packs.push({
       id,
